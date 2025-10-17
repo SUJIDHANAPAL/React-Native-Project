@@ -62,7 +62,7 @@ export default function Home() {
          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         />
         <Text variant="titleLarge" style={{ fontWeight: "bold", color: "#ff3366" }}>
-         Stylish
+         Stylish studio
         </Text>
         <TouchableOpacity onPress={goToProfile}>
           <Avatar.Image
