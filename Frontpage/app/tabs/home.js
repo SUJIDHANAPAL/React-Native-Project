@@ -62,7 +62,7 @@ export default function Home() {
          onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         />
         <Text variant="titleLarge" style={{ fontWeight: "bold", color: "#ff3366" }}>
-         Flipkart Products
+         Flipkart 
         </Text>
         <TouchableOpacity onPress={goToProfile}>
           <Avatar.Image
