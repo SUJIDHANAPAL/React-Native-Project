@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { Link, useRouter } from 'expo-router';
-import { auth } from '../FirebaseConfig'; // Make sure this exports your Firebase auth instance
+import { auth } from '../../firebaseConfig'; // Make sure this exports your Firebase auth instance
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 
 export default function RegisterScreen() {

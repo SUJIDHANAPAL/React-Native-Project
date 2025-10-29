@@ -6,6 +6,7 @@ export default function ProductDescription() {
   const { id, name, price, img } = useLocalSearchParams(); 
    const router = useRouter();
 
+   
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Image source={{ uri: img }} style={styles.image} />

@@ -1,73 +1,100 @@
-import React, { useState } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
-import { Text, Card, Button } from 'react-native-paper';
+import React, { useEffect, useState } from "react";
+import { View, FlatList, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { Text, Card } from "react-native-paper";
+import { Ionicons } from "@expo/vector-icons";
+import { collection, onSnapshot, doc, deleteDoc } from "firebase/firestore";
+import { db } from "../../firebaseConfig";
 
-const initialWishlist = [
-  {
-    id: '1',
-    title: 'MacBook Pro',
-    description: 'Apple M3 Pro chip, 16GB RAM',
-    image: 'https://store.storeimages.cdn-apple.com/1/as-images.apple.com/is/mba13-midnight-cto-hero-202503?wid=840&hei=498&fmt=jpeg&qlt=90&.v=Q2E5SzQzQ0daYWpuZGNscHpUSFFEZktybEU1S0RNR1JRamRyTlliVTJCd2VSQkVmNWJCc0NzWFZ1VVFQblZWdnZvdUZlR0V0VUdJSjBWaDVNVG95YkVTMzRwekd2aEllbUhqT2JVR2ZFU3M',
-  },
- 
-];
+const Wishlist = () => {
+  const [wishlist, setWishlist] = useState([]);
 
-export default function Wishlist() {
-  const [wishlist, setWishlist] = useState(initialWishlist);
+  // ✅ Fetch wishlist items directly from "wishlist" collection
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "wishlist"), (snapshot) => {
+      const items = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setWishlist(items);
+    });
 
-  const removeItem = (id) => {
-    setWishlist((prev) => prev.filter((item) => item.id !== id));
+    return () => unsubscribe();
+  }, []);
+
+  // ✅ Remove item from wishlist
+  const removeFromWishlist = async (id) => {
+    try {
+      await deleteDoc(doc(db, "wishlist", id));
+      console.log("🗑️ Item removed from wishlist!");
+    } catch (error) {
+      console.error("❌ Error removing item:", error);
+    }
   };
 
+  // ✅ Render wishlist items
   const renderItem = ({ item }) => (
     <Card style={styles.card}>
-      <Card.Cover source={{ uri: item.image }} />
-      <Card.Title title={item.title} subtitle={item.description} />
-      <Card.Actions>
-        <Button onPress={() => removeItem(item.id)}>Remove</Button>
+      <Image source={{ uri: item.image }} style={styles.image} />
+      <Card.Content>
+        <Text style={styles.title}>{item.name}</Text>
+        <Text style={styles.price}>{item.price}</Text>
+      </Card.Content>
+
+      <Card.Actions style={{ justifyContent: "flex-end" }}>
+        <TouchableOpacity onPress={() => removeFromWishlist(item.id)}>
+          <Ionicons name="trash-outline" size={24} color="red" />
+        </TouchableOpacity>
       </Card.Actions>
     </Card>
   );
 
   return (
     <View style={styles.container}>
-      <Text variant="headlineMedium" style={styles.title}>
-        My Wishlist
-      </Text>
-
       {wishlist.length === 0 ? (
-        <Text style={styles.emptyText}>Your wishlist is empty.</Text>
+        <Text style={styles.empty}>❤️ Your wishlist is empty</Text>
       ) : (
         <FlatList
           data={wishlist}
-          keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          keyExtractor={(item) => item.id}
         />
       )}
     </View>
   );
-}
+};
+
+export default Wishlist;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
   },
   card: {
-    marginBottom: 16,
-    
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 2,
+  },
+  image: {
+    width: "100%",
+    height: 180,
   },
   title: {
-    marginBottom: 16,
-    fontWeight: 'bold',
-    marginTop:30,
+    fontSize: 18,
+    fontWeight: "600",
+    marginTop: 8,
   },
-  emptyText: {
-    textAlign: 'center',
-    marginTop: 50,
+  price: {
     fontSize: 16,
-    color: '#666',
+    color: "#ff3366",
+    marginTop: 4,
+  },
+  empty: {
+    fontSize: 18,
+    textAlign: "center",
+    color: "#666",
+    marginTop: 40,
   },
 });

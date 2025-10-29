@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { Link, useRouter } from 'expo-router';
-import { auth } from '../FirebaseConfig'; // Make sure this exports your Firebase auth instance
+import { auth } from '../firebaseConfig'; // Make sure this exports your Firebase auth instance
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginScreen() {
@@ -75,7 +75,7 @@ export default function LoginScreen() {
       />
 
       {/* Forgot Password */}
-      <Link href="/forgotpassword" asChild>
+      <Link href="/auth/forgotpassword" asChild>
         <TouchableOpacity>
           <Text style={styles.forgot}>Forgot Password?</Text>
         </TouchableOpacity>
@@ -100,7 +100,7 @@ export default function LoginScreen() {
       </View>
 
       {/* Register */}
-      <Link href="/register" asChild>
+      <Link href="/auth/register" asChild>
         <TouchableOpacity>
           <Text style={styles.bottomText}>
             Create An Account <Text style={styles.link}>Sign Up</Text>

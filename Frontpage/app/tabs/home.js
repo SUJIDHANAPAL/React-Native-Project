@@ -1,17 +1,35 @@
-
-import React from "react";
-import { View, ScrollView, Image, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  ScrollView,
+  Image,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+} from "react-native";
 import { Text, Card, Button, Avatar, useTheme } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
-import Swiper from 'react-native-swiper';
-import { useRouter } from 'expo-router';
+import Swiper from "react-native-swiper";
+import { useRouter } from "expo-router";
 import { DrawerActions, useNavigation } from "@react-navigation/native";
-
+import { db } from "../../firebaseConfig";
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 
 const categories = [
   { id: 1, name: "Women", img: "https://images.pexels.com/photos/1036623/pexels-photo-1036623.jpeg" },
   { id: 2, name: "Men", img: "https://images.pexels.com/photos/1337477/pexels-photo-1337477.jpeg" },
-  { id: 3, name: "Kids", img: "https://media.istockphoto.com/id/1154728763/photo/cheerful-kids-in-stylish-outfits.jpg?s=612x612&w=is&k=20&c=xbe07h0p7TLwJFF2A95Q8EhgVkwRBl1fqlgAOjGb34A=" },
+  { id: 3, name: "Kids", img: "https://images.pexels.com/photos/1619697/pexels-photo-1619697.jpeg" },
   { id: 4, name: "Shoes", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRPLSu-_o3HVm6Sibc8y1RQtsY0oXK3UmMnWqoJac9KCbhCpYA8pNztgOQ&s" },
   { id: 5, name: "Accessories", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS2grI_f50heLYIjlC-tQbJKWI_LT42BEcVTaMf4rTCwHFzxSWqW3Mjv7c&s" },
 ];
@@ -42,29 +60,73 @@ export default function Home() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  const goToProfile = () => {
-    router.push("/tabs/profile");
+  const [wishlistIds, setWishlistIds] = useState([]);
+  const wishlistRef = collection(db, "wishlist");
+
+  // ✅ Real-time wishlist listener
+  useEffect(() => {
+    const unsubscribe = onSnapshot(wishlistRef, (snapshot) => {
+      const ids = snapshot.docs.map((doc) => doc.data().productId);
+      setWishlistIds(ids);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // ❤️ Add to Wishlist
+  const addToWishlist = async (product) => {
+    try {
+      const q = query(wishlistRef, where("productId", "==", product.id));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        Alert.alert("Already in Wishlist ❤️");
+        return;
+      }
+      await addDoc(wishlistRef, {
+        productId: product.id,
+        name: product.name,
+        image: product.img,
+        price: product.price,
+      });
+      Alert.alert("Added to Wishlist ❤️");
+    } catch (error) {
+      console.error("Error adding to wishlist:", error);
+    }
   };
 
-  const bestProduct = {
-    id: 101,
-    name: "Stylish Sneakers",
-    price: "₹1,299",
-    img: "https://img.freepik.com/free-photo/fashion-shoes-sneakers_1203-7529.jpg",
+  // 💔 Remove from Wishlist
+  const removeFromWishlist = async (product) => {
+    try {
+      const q = query(wishlistRef, where("productId", "==", product.id));
+      const snapshot = await getDocs(q);
+      snapshot.forEach(async (docSnap) => {
+        await deleteDoc(doc(db, "wishlist", docSnap.id));
+      });
+      Alert.alert("Removed from Wishlist 💔");
+    } catch (error) {
+      console.error("Error removing wishlist item:", error);
+    }
+  };
+
+  // Toggle Wishlist
+  const toggleWishlist = (product) => {
+    if (wishlistIds.includes(product.id)) {
+      removeFromWishlist(product);
+    } else {
+      addToWishlist(product);
+    }
   };
 
   return (
     <ScrollView style={{ backgroundColor: "#fff" }} showsVerticalScrollIndicator={false}>
-
-      {/* Header Bar */}
+      {/* Header */}
       <View style={styles.topBar}>
-        <Ionicons name="menu-outline" size={26} color="#333" 
-         onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
-        />
+        <TouchableOpacity onPress={() => navigation.dispatch(DrawerActions.toggleDrawer())}>
+          <Ionicons name="menu-outline" size={26} color="#333" />
+        </TouchableOpacity>
         <Text variant="titleLarge" style={{ fontWeight: "bold", color: "#ff3366" }}>
-         Stylish studio
+          Stylish Studio
         </Text>
-        <TouchableOpacity onPress={goToProfile}>
+        <TouchableOpacity onPress={() => router.push("/tabs/profile")}>
           <Avatar.Image
             size={40}
             source={{ uri: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png" }}
@@ -101,62 +163,63 @@ export default function Home() {
       <Card style={styles.bannerCard}>
         <View style={styles.sliderContainer}>
           <Swiper autoplay autoplayTimeout={3} showsPagination dotColor="#ccc" activeDotColor="#ff3366">
-            <Image
-              source={{ uri: 'https://img.freepik.com/free-vector/fashion-sale-banner-template_23-2148981144.jpg' }}
-              style={styles.slideImage}
-            />
-            <Image
-              source={{ uri: 'https://img.freepik.com/free-vector/summer-sale-background-with-beach-elements_52683-15402.jpg' }}
-              style={styles.slideImage}
-            />
-            <Image
-              source={{ uri: 'https://img.freepik.com/free-photo/young-woman-shopping_23-2148010159.jpg' }}
-              style={styles.slideImage}
-            />
+            <Image source={{ uri: "https://img.freepik.com/free-vector/fashion-sale-banner-template_23-2148981144.jpg" }} style={styles.slideImage} />
+            <Image source={{ uri: "https://img.freepik.com/free-vector/summer-sale-background-with-beach-elements_52683-15402.jpg" }} style={styles.slideImage} />
+            <Image source={{ uri: "https://img.freepik.com/free-photo/young-woman-shopping_23-2148010159.jpg" }} style={styles.slideImage} />
           </Swiper>
-        </View>
-        <View style={styles.bannerOverlay}>
-          <Text style={styles.bannerTitle}>50–60% OFF</Text>
-          <Button mode="contained" buttonColor="#ff3366" style={styles.shopBtn}>
-            Shop Now
-          </Button>
         </View>
       </Card>
 
-      {/* Best of the Day */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>Best of the Day</Text>
-        <Pressable onPress={() => router.push({ pathname: `/product/${bestProduct.id}`, params: bestProduct })}>
-          <Card style={styles.dealCard}>
-            <Card.Cover source={{ uri: bestProduct.img }} />
-            <Card.Content>
-              <Text variant="titleSmall">{bestProduct.name}</Text>
-              <Text style={{ color: theme.colors.primary }}>{bestProduct.price}</Text>
-            </Card.Content>
-          </Card>
-        </Pressable>
-      </View>
-
       {/* Trending Products */}
       <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>Trending Products</Text>
-        <FlatList
-          horizontal
-          data={trendingProducts}
-          keyExtractor={(item) => item.id.toString()}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <Pressable onPress={() => router.push({ pathname: `/product/${item.id}`, params: item })}>
-              <Card style={styles.trendingCard}>
-                <Card.Cover source={{ uri: item.img }} />
-                <Card.Content>
-                  <Text>{item.name}</Text>
-                  <Text style={{ color: "#ff3366" }}>{item.price}</Text>
-                </Card.Content>
-              </Card>
-            </Pressable>
-          )}
-        />
+        <Text variant="titleMedium" style={styles.sectionTitle}>
+          Trending Products
+        </Text>
+       <FlatList
+  horizontal
+  data={trendingProducts}
+  keyExtractor={(item) => item.id.toString()}
+  showsHorizontalScrollIndicator={false}
+  renderItem={({ item }) => {
+    const isWishlisted = wishlistIds.includes(item.id);
+    return (
+      <TouchableOpacity
+        onPress={() =>
+          router.push({
+            pathname: "/auth/product/productdetails",
+            params: {
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              image: item.img,
+              description: "Stylish and trendy product from our latest collection.",
+            },
+          })
+        }
+      >
+        <View style={styles.productCard}>
+          <Image source={{ uri: item.img }} style={styles.productImage} />
+          <View style={styles.productInfo}>
+            <Text style={styles.productName}>{item.name}</Text>
+            <Text style={styles.productPrice}>{item.price}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.heartIcon}
+            onPress={() => toggleWishlist(item)}
+          >
+            <Ionicons
+              name={isWishlisted ? "heart" : "heart-outline"}
+              size={24}
+              color={isWishlisted ? "#ff3366" : "#777"}
+            />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  }}
+/>
+
       </View>
 
       {/* Sale Banner */}
@@ -179,9 +242,11 @@ export default function Home() {
         </Card>
       </View>
 
-      {/* Sponsored */}
+      {/* Sponsored Banner */}
       <Card style={styles.sponsoredCard}>
-        <Card.Cover source={{ uri: "https://www.westside.com/cdn/shop/articles/summer_casuals_for_men_by_wes_c.png?v=1646466676" }} />
+        <Card.Cover
+          source={{ uri: "https://www.westside.com/cdn/shop/articles/summer_casuals_for_men_by_wes_c.png?v=1646466676" }}
+        />
         <View style={styles.overlay}>
           <Text style={styles.overlayText}>UP TO 50% OFF</Text>
         </View>
@@ -193,130 +258,27 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 15,
-    paddingTop: 50,
-    paddingBottom: 8,
-  },
-  searchBar: {
-    flexDirection: "row",
-
-    alignItems: "center",
-    backgroundColor: "#f3f3f3",
-    flex: 1,
-    marginHorizontal: 15,
-    borderRadius: 25,
-    paddingHorizontal: 10,
-    marginTop:10,
-    marginBottom:25,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 14,
-    padding: 5,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 15,
-  },
-  categoryList: {
-    paddingHorizontal: 15,
-    paddingBottom: 10,
-  },
-  categoryItem: {
-    alignItems: "center",
-    marginRight: 20,
-  },
-  categoryText: {
-    marginTop: 5,
-    fontSize: 12,
-  },
-
-  sliderContainer: {
-  height: 200,
-  width: '100%',
-  
-  justifyContent: 'center',
-  alignSelf: 'center',
-},
-
-slideImage: {
-  width: '100%',
-  height: '100%',
-  borderRadius: 12,
-  alignSelf: 'center',
-},
-
-  bannerCard: {
-    marginHorizontal: 15,
-    marginBottom: 10,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  bannerOverlay: {
-    position: "absolute",
-    bottom: 10,
-    left: 20,
-  },
-  bannerTitle: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  shopBtn: {
-    marginTop: 6,
-    borderRadius: 8,
-  },
-  section: {
-    marginTop: 15,
-    paddingHorizontal: 15,
-  },
-  sectionTitle: {
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-  dealCard: {
-    borderRadius: 12,
-  },
-  trendingCard: {
-    width: 140,
-    marginRight: 12,
-    borderRadius: 12,
-  },
-  saleBanner: {
-    marginTop: 15,
-    marginHorizontal: 15,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  saleImage: {
-    width: "100%",
-    height: 120,
-  },
-  arrivalCard: {
-    borderRadius: 12,
-  },
-  sponsoredCard: {
-    margin: 15,
-    borderRadius: 12,
-    overflow: "hidden",
-  },
-  overlay: {
-    position: "absolute",
-    bottom: 0,
-    width: "100%",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 10,
-  },
-  overlayText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "bold",
-  },
-  
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 50, paddingBottom: 8 },
+  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#f3f3f3", flex: 1, marginHorizontal: 15, borderRadius: 25, paddingHorizontal: 10, marginTop: 10, marginBottom: 25 },
+  searchInput: { flex: 1, fontSize: 14, padding: 5 },
+  categoryList: { paddingHorizontal: 15, paddingBottom: 10 },
+  categoryItem: { alignItems: "center", marginRight: 20 },
+  categoryText: { marginTop: 5, fontSize: 12 },
+  bannerCard: { marginHorizontal: 15, marginBottom: 10, borderRadius: 12, overflow: "hidden" },
+  sliderContainer: { height: 200, width: "100%", justifyContent: "center", alignSelf: "center" },
+  slideImage: { width: "100%", height: "100%", borderRadius: 12 },
+  section: { marginTop: 15, paddingHorizontal: 15 },
+  sectionTitle: { fontWeight: "bold", marginBottom: 10 },
+  productCard: { width: 150, marginRight: 12, backgroundColor: "#fdf1f4", borderRadius: 12, padding: 8, position: "relative" },
+  productImage: { width: "100%", height: 120, borderRadius: 10 },
+  productInfo: { marginTop: 8 },
+  productName: { fontSize: 14, fontWeight: "600", color: "#333" },
+  productPrice: { color: "#ff3366", fontWeight: "bold" },
+  heartIcon: { position: "absolute", top: 8, right: 8, backgroundColor: "#fff", borderRadius: 20, padding: 5, elevation: 3 },
+  saleBanner: { marginTop: 15, marginHorizontal: 15, borderRadius: 12, overflow: "hidden" },
+  saleImage: { width: "100%", height: 120 },
+  arrivalCard: { borderRadius: 12 },
+  sponsoredCard: { padding: 12 },
+  overlay: { position: "absolute", bottom: 0, width: "100%", backgroundColor: "rgba(0,0,0,0.5)", padding: 10 },
+  overlayText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
 });
