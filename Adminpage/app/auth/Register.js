@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { TextInput, Button } from "react-native-paper";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../firebaseConfig"; // 👈 adjust path correctly
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import { auth } from "../../firebaseConfig";
 import { useRouter, Link } from "expo-router";
 
 export default function Register() {
@@ -12,9 +12,19 @@ export default function Register() {
 
   const handleRegister = async () => {
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert("Admin registered successfully!");
-      router.push("/"); // ✅ go back to login page
+      // ✅ Create the user
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // ✅ Send email verification
+      await sendEmailVerification(user);
+
+      alert(
+        "✅ Registered successfully! A verification link has been sent to your email. Please verify before logging in."
+      );
+
+      // Redirect to login
+      router.push("/");
     } catch (error) {
       alert(error.message);
     }
@@ -31,7 +41,7 @@ export default function Register() {
 
       <Link href="/" asChild>
         <Text style={styles.bottomText}>
-          I Already Have an Account <Text style={styles.link}>Login</Text>
+          Already have an account? <Text style={styles.link}>Login</Text>
         </Text>
       </Link>
     </View>
