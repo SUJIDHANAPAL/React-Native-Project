@@ -9,26 +9,35 @@ export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      alert("⚠️ Please enter both email and password");
+      return;
+    }
+
+    setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
       if (user.emailVerified) {
         alert("✅ Login successful!");
-        router.push("/admin/AddProduct"); // navigate to admin page
+        router.push("/admin/Dashboard"); // 👈 redirect to Admin Dashboard (with sidebar)
       } else {
         alert("⚠️ Please verify your email before logging in.");
       }
     } catch (error) {
       alert(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <Text style={styles.title}>Admin Login</Text>
 
       <TextInput
         label="Email"
@@ -47,17 +56,22 @@ export default function Login() {
       />
 
       <Link href="/ForgotPassword" asChild>
-  <Text style={styles.forgotText}>Forgot Password?</Text>
-</Link>
+        <Text style={styles.forgotText}>Forgot Password?</Text>
+      </Link>
 
-
-      <Button mode="contained" onPress={handleLogin}>
+      <Button
+        mode="contained"
+        onPress={handleLogin}
+        loading={loading}
+        style={styles.loginButton}
+      >
         Login
       </Button>
 
       <Link href="/auth/Register" asChild>
         <Text style={styles.bottomText}>
-          Don’t have an account? <Text style={styles.link}>Register</Text>
+          Don’t have an account?{" "}
+          <Text style={styles.link}>Register</Text>
         </Text>
       </Link>
     </View>
@@ -68,34 +82,39 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    padding: 20,
+    padding: 25,
     backgroundColor: "#fff",
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "bold",
     textAlign: "center",
-    color: "#6200ee",
+    color: "#4B0082", // 👈 matches your top bar color
     marginBottom: 25,
   },
   input: {
     marginBottom: 15,
     backgroundColor: "#f6f6f6",
   },
+  forgotText: {
+    textAlign: "right",
+    color: "#4B0082",
+    marginBottom: 10,
+    fontWeight: "600",
+  },
+  loginButton: {
+    backgroundColor: "#4B0082",
+    borderRadius: 8,
+    paddingVertical: 5,
+  },
   bottomText: {
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 25,
     color: "#444",
+    fontSize: 14,
   },
   link: {
-    color: "#6200ee",
+    color: "#4B0082",
     fontWeight: "bold",
   },
-  forgotText: {
-  textAlign: "right",
-  color: "#6200ee",
-  marginBottom: 10,
-  fontWeight: "bold",
-},
-
 });

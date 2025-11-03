@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView, Image } from "react-native";
 import { TextInput, Button, Text, Card } from "react-native-paper";
+import { Picker } from "@react-native-picker/picker";
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 
@@ -10,9 +11,11 @@ export default function AddProduct() {
   const [image, setImage] = useState("");
   const [description, setDescription] = useState("");
   const [products, setProducts] = useState([]);
+  const [catalogues, setCatalogues] = useState([]);
+  const [selectedCatalogue, setSelectedCatalogue] = useState("");
   const [editingId, setEditingId] = useState(null);
 
-  // ✅ Real-time fetch products
+  // ✅ Fetch products (real-time)
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "products"), (snapshot) => {
       const productList = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -21,17 +24,35 @@ export default function AddProduct() {
     return unsubscribe;
   }, []);
 
+  // ✅ Fetch catalogues for dropdown
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "catalogues"), (snapshot) => {
+      const catalogueList = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setCatalogues(catalogueList);
+    });
+    return unsubscribe;
+  }, []);
+
   // ✅ Add or Update Product
   const addOrUpdateProduct = async () => {
-    if (!name || !price || !image) {
-      alert("⚠️ Please fill all fields");
+    if (!name || !price || !image || !selectedCatalogue) {
+      alert("⚠️ Please fill all fields including catalogue");
       return;
     }
 
     try {
       if (editingId) {
         const docRef = doc(db, "products", editingId);
-        await updateDoc(docRef, { name, price: parseFloat(price), image, description });
+        await updateDoc(docRef, {
+          name,
+          price: parseFloat(price),
+          image,
+          description,
+          catalogue: selectedCatalogue,
+        });
         alert("✅ Product updated successfully!");
         setEditingId(null);
       } else {
@@ -40,10 +61,18 @@ export default function AddProduct() {
           price: parseFloat(price),
           image,
           description,
+          catalogue: selectedCatalogue,
+          createdAt: new Date(),
         });
         alert("✅ Product added successfully!");
       }
-      setName(""); setPrice(""); setImage(""); setDescription("");
+
+      // Reset fields
+      setName("");
+      setPrice("");
+      setImage("");
+      setDescription("");
+      setSelectedCatalogue("");
     } catch (error) {
       alert(error.message);
     }
@@ -66,6 +95,7 @@ export default function AddProduct() {
     setPrice(String(item.price));
     setImage(item.image);
     setDescription(item.description);
+    setSelectedCatalogue(item.catalogue || "");
   };
 
   return (
@@ -78,6 +108,26 @@ export default function AddProduct() {
       <TextInput label="Price" value={price} onChangeText={setPrice} keyboardType="numeric" style={styles.input} />
       <TextInput label="Image URL" value={image} onChangeText={setImage} style={styles.input} />
       <TextInput label="Description" value={description} onChangeText={setDescription} multiline style={styles.input} />
+
+      {/* 🔽 Catalogue Selector */}
+      <View style={styles.pickerContainer}>
+        <Text style={{ fontWeight: "bold", marginBottom: 5 }}>Select Catalogue</Text>
+        <Picker
+          selectedValue={selectedCatalogue}
+          onValueChange={(value) => setSelectedCatalogue(value)}
+          style={styles.picker}
+        >
+          <Picker.Item label="-- Choose Catalogue --" value="" />
+          {catalogues.map((item) => (
+            <Picker.Item
+              key={item.id}
+              label={item.catalogueName || item.name || "Untitled"}
+              value={item.catalogueName || item.name}
+            />
+          ))}
+        </Picker>
+      </View>
+
       <Button mode="contained" onPress={addOrUpdateProduct}>
         {editingId ? "Update Product" : "Add Product"}
       </Button>
@@ -90,6 +140,7 @@ export default function AddProduct() {
           <Card.Content>
             <Text variant="titleMedium">{item.name}</Text>
             <Text>💰 Rs. {item.price}</Text>
+            <Text>🗂️ Catalogue: {item.catalogue || "Not Assigned"}</Text>
             <Text>{item.description}</Text>
           </Card.Content>
           <Card.Actions>
@@ -120,6 +171,15 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 10,
+  },
+  pickerContainer: {
+    backgroundColor: "#f2f2f2",
+    borderRadius: 8,
+    marginBottom: 15,
+    padding: 10,
+  },
+  picker: {
+    height: 45,
   },
   card: {
     marginBottom: 15,

@@ -1,13 +1,14 @@
 // ✅ Import Firebase SDKs
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   initializeAuth,
   getReactNativePersistence,
+  getAuth,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import ReactNativeAsyncStorage from "@react-native-async-storage/async-storage";
 
-// ✅ Your Firebase configuration
+// ✅ Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyCa5fiFonhu7Hsl3hMHWHxs9fbmGuW8ueE",
   authDomain: "login-651e8.firebaseapp.com",
@@ -18,16 +19,22 @@ const firebaseConfig = {
   measurementId: "G-9054MRHC5M",
 };
 
-// ✅ Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// ✅ Initialize Firebase safely (avoid reinitialization)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-// ✅ Initialize Auth with AsyncStorage persistence
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-});
+// ✅ Initialize Auth with AsyncStorage persistence (React Native only)
+let auth;
+try {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  });
+} catch (error) {
+  // If already initialized, just get the existing instance
+  auth = getAuth(app);
+}
 
 // ✅ Initialize Firestore
 const db = getFirestore(app);
 
-// ✅ Export instances
-export { auth, db };
+// ✅ Export for use in other files
+export { app, auth, db };
