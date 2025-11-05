@@ -24,7 +24,7 @@ export default function Login() {
 
       if (user.emailVerified) {
         alert("✅ Login successful!");
-        router.push("/admin/Dashboard"); // 👈 redirect to Admin Dashboard (with sidebar)
+        router.push("/admin/Dashboard"); //  redirect to Admin Dashboard (with sidebar)
       } else {
         alert("⚠️ Please verify your email before logging in.");
       }

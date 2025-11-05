@@ -134,15 +134,15 @@ export default function Home() {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchBar}>
+      {/* 🔍 Search Bar (Clickable to go to Product.js) */}
+      <TouchableOpacity
+        style={styles.searchBar}
+        onPress={() => router.push("/auth/product/product")}
+        activeOpacity={0.8}
+      >
         <Ionicons name="search-outline" size={18} color="#999" />
-        <TextInput
-          placeholder="Search for products"
-          placeholderTextColor="#999"
-          style={styles.searchInput}
-        />
-      </View>
+        <Text style={styles.searchPlaceholder}>Search for products</Text>
+      </TouchableOpacity>
 
       {/* Categories */}
       <FlatList
@@ -175,51 +175,49 @@ export default function Home() {
         <Text variant="titleMedium" style={styles.sectionTitle}>
           Trending Products
         </Text>
-       <FlatList
-  horizontal
-  data={trendingProducts}
-  keyExtractor={(item) => item.id.toString()}
-  showsHorizontalScrollIndicator={false}
-  renderItem={({ item }) => {
-    const isWishlisted = wishlistIds.includes(item.id);
-    return (
-      <TouchableOpacity
-        onPress={() =>
-          router.push({
-            pathname: "/auth/product/productdetails",
-            params: {
-              id: item.id,
-              name: item.name,
-              price: item.price,
-              image: item.img,
-              description: "Stylish and trendy product from our latest collection.",
-            },
-          })
-        }
-      >
-        <View style={styles.productCard}>
-          <Image source={{ uri: item.img }} style={styles.productImage} />
-          <View style={styles.productInfo}>
-            <Text style={styles.productName}>{item.name}</Text>
-            <Text style={styles.productPrice}>{item.price}</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.heartIcon}
-            onPress={() => toggleWishlist(item)}
-          >
-            <Ionicons
-              name={isWishlisted ? "heart" : "heart-outline"}
-              size={24}
-              color={isWishlisted ? "#ff3366" : "#777"}
-            />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  }}
-/>
-
+        <FlatList
+          horizontal
+          data={trendingProducts}
+          keyExtractor={(item) => item.id.toString()}
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => {
+            const isWishlisted = wishlistIds.includes(item.id);
+            return (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/auth/product/productdetails",
+                    params: {
+                      id: item.id,
+                      name: item.name,
+                      price: item.price,
+                      image: item.img,
+                      description: "Stylish and trendy product from our latest collection.",
+                    },
+                  })
+                }
+              >
+                <View style={styles.productCard}>
+                  <Image source={{ uri: item.img }} style={styles.productImage} />
+                  <View style={styles.productInfo}>
+                    <Text style={styles.productName}>{item.name}</Text>
+                    <Text style={styles.productPrice}>{item.price}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.heartIcon}
+                    onPress={() => toggleWishlist(item)}
+                  >
+                    <Ionicons
+                      name={isWishlisted ? "heart" : "heart-outline"}
+                      size={24}
+                      color={isWishlisted ? "#ff3366" : "#777"}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
       </View>
 
       {/* Sale Banner */}
@@ -259,8 +257,18 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 50, paddingBottom: 8 },
-  searchBar: { flexDirection: "row", alignItems: "center", backgroundColor: "#f3f3f3", flex: 1, marginHorizontal: 15, borderRadius: 25, paddingHorizontal: 10, marginTop: 10, marginBottom: 25 },
-  searchInput: { flex: 1, fontSize: 14, padding: 5 },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f3f3f3",
+    marginHorizontal: 15,
+    borderRadius: 25,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+    marginBottom: 25,
+  },
+  searchPlaceholder: { color: "#999", fontSize: 15, marginLeft: 5 },
   categoryList: { paddingHorizontal: 15, paddingBottom: 10 },
   categoryItem: { alignItems: "center", marginRight: 20 },
   categoryText: { marginTop: 5, fontSize: 12 },

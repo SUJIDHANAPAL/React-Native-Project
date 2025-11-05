@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { TextInput, Button } from 'react-native-paper';
 import { Link, useRouter } from 'expo-router';
-import { auth } from '../firebaseConfig'; // Make sure this exports your Firebase auth instance
+import { auth } from '../../firebaseConfig'; // adjusted path
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginScreen() {
@@ -18,14 +18,11 @@ export default function LoginScreen() {
     }
 
     signInWithEmailAndPassword(auth, email, password)
-      .then(userCredential => {
-        // Signed in
-        const user = userCredential.user;
-        // Navigate to the start screen after successful login
-        router.push('/start');
+      .then(() => {
+        // Navigate to the main tab screen after successful login
+        router.replace('/tabs');
       })
       .catch(error => {
-        // Handle Errors here.
         let message = '';
         switch (error.code) {
           case 'auth/invalid-email':
@@ -57,7 +54,6 @@ export default function LoginScreen() {
         onChangeText={setEmail}
       />
 
-      {/* Password */}
       <TextInput
         label="Password"
         mode="outlined"
@@ -74,14 +70,12 @@ export default function LoginScreen() {
         onChangeText={setPassword}
       />
 
-      {/* Forgot Password */}
       <Link href="/auth/forgotpassword" asChild>
         <TouchableOpacity>
           <Text style={styles.forgot}>Forgot Password?</Text>
         </TouchableOpacity>
       </Link>
 
-      {/* Login Button */}
       <Button
         mode="contained"
         style={styles.button}
@@ -91,15 +85,12 @@ export default function LoginScreen() {
         Login
       </Button>
 
-      {/* OR divider */}
       <Text style={styles.or}>- OR Continue with -</Text>
 
-      {/* Social Logins */}
       <View style={styles.socials}>
         <Text> Google | Apple | Facebook </Text>
       </View>
 
-      {/* Register */}
       <Link href="/auth/register" asChild>
         <TouchableOpacity>
           <Text style={styles.bottomText}>

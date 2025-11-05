@@ -109,7 +109,7 @@ export default function RegisterScreen() {
         <Text> Google || Apple || Facebook</Text>
       </View>
 
-      <Link href="/login" asChild>
+      <Link href="/auth/login" asChild>
         <TouchableOpacity>
           <Text style={styles.bottomText}>
             I Already Have an Account <Text style={styles.link}>Login</Text>

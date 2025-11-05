@@ -31,12 +31,12 @@ function CustomDrawerContent(props) {
         onPress={() => router.push("/tabs/addtocart")}
       />
       <DrawerItem
-  label="Product"
-  icon={({ color, size }) => (
-    <Ionicons name="pricetag-outline" color={color} size={22} />
-  )}
-  onPress={() => router.push("/auth/product/product")}
-/>
+        label="Product"
+        icon={({ color, size }) => (
+          <Ionicons name="pricetag-outline" color={color} size={22} />
+        )}
+        onPress={() => router.push("/auth/product/product")}
+      />
       <DrawerItem
         label="Profile"
         icon={({ color, size }) => (
