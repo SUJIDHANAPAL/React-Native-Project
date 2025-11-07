@@ -6,13 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   TextInput,
-  ScrollView,
   Keyboard,
 } from "react-native";
 import { Text, Card, Button } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ added
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { db } from "../../../firebaseConfig";
 import {
   collection,
@@ -33,15 +32,14 @@ const ProductScreen = () => {
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [searchHistory, setSearchHistory] = useState([]); // ✅ added
+  const [searchHistory, setSearchHistory] = useState([]);
 
   // ✅ Local Trending Products
   const trendingProducts = [
     {
       id: "t1",
       name: "Stylish Watch",
-      price: "₹999",
+      price: 999,
       image:
         "https://rukminim2.flixcart.com/image/612/612/xif0q/watch/t/w/i/-original-imahfsz9bqgqdxzd.jpeg?q=70",
       description: "Trendy wrist watch perfect for daily style.",
@@ -51,7 +49,7 @@ const ProductScreen = () => {
     {
       id: "t2",
       name: "Leather Wallet",
-      price: "₹499",
+      price: 499,
       image:
         "https://rukminim2.flixcart.com/image/612/612/xif0q/wallet-card-wallet/o/e/p/-original-imah4c69hr9fgbgy.jpeg?q=70",
       description: "Elegant wallet made from premium leather.",
@@ -61,7 +59,7 @@ const ProductScreen = () => {
     {
       id: "t3",
       name: "Sneakers",
-      price: "₹1,299",
+      price: 1299,
       image:
         "https://rukminim2.flixcart.com/image/612/612/xif0q/shoe/d/g/n/10-8563-10-killer-green-original-imaheppugddhqged.jpeg?q=70",
       description: "Comfortable sneakers for your everyday look.",
@@ -116,8 +114,8 @@ const ProductScreen = () => {
   const addToHistory = async (queryText) => {
     if (!queryText.trim()) return;
     const lower = queryText.trim().toLowerCase();
-    if (searchHistory.some((q) => q.toLowerCase() === lower)) return; // avoid duplicates
-    const updated = [queryText, ...searchHistory].slice(0, 10); // max 10
+    if (searchHistory.some((q) => q.toLowerCase() === lower)) return;
+    const updated = [queryText, ...searchHistory].slice(0, 10);
     setSearchHistory(updated);
     saveHistory(updated);
   };
@@ -159,7 +157,8 @@ const ProductScreen = () => {
           productId,
           name: product.name,
           price: product.price,
-          image: product.image || product.img || "",
+          discountPrice: product.discountPrice || 0,
+          image: product.image || "",
           description: product.description || "",
         });
       }
@@ -183,7 +182,8 @@ const ProductScreen = () => {
           productId,
           name: product.name,
           price: product.price,
-          image: product.image || product.img || "",
+          discountPrice: product.discountPrice || 0,
+          image: product.image || "",
           description: product.description || "No description available",
           quantity: 1,
         });
@@ -196,10 +196,8 @@ const ProductScreen = () => {
   // 🔍 Search logic (case-insensitive)
   useEffect(() => {
     const queryText = searchQuery.toLowerCase().trim();
-
     if (queryText === "") {
       setFilteredProducts(products);
-      setSuggestions([]);
       return;
     }
 
@@ -211,35 +209,18 @@ const ProductScreen = () => {
     );
 
     setFilteredProducts(matched);
-    setSuggestions(
-      matched
-        .filter((p) => p.name?.toLowerCase().startsWith(queryText))
-        .slice(0, 5)
-    );
   }, [searchQuery, products]);
-
-  const handleSelectSuggestion = (name) => {
-    setSearchQuery(name);
-    handleSearch(name);
-  };
-
-  const handleSearch = (queryText) => {
-    const lower = queryText.toLowerCase().trim();
-    const matched = products.filter(
-      (p) =>
-        p.name?.toLowerCase().includes(lower) ||
-        p.category?.toLowerCase().includes(lower) ||
-        p.catalogue?.toLowerCase().includes(lower)
-    );
-    setFilteredProducts(matched);
-    addToHistory(queryText);
-    Keyboard.dismiss();
-  };
 
   // 🧩 Render each product card
   const renderItem = ({ item }) => {
     const isWishlisted = wishlist.includes(item.id);
     const isInCart = cart.includes(item.id);
+
+    const hasDiscount = item.discountPrice && item.discountPrice < item.price;
+    const discountedPrice = hasDiscount ? item.discountPrice : item.price;
+    const discountPercent = hasDiscount
+      ? Math.round(((item.price - item.discountPrice) / item.price) * 100)
+      : 0;
 
     return (
       <Card style={styles.card}>
@@ -251,6 +232,7 @@ const ProductScreen = () => {
                 id: item.id,
                 name: item.name,
                 price: item.price,
+                discountPrice: item.discountPrice || 0,
                 image: item.image,
                 description: item.description,
               },
@@ -264,7 +246,17 @@ const ProductScreen = () => {
           <Text style={styles.name} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={styles.price}>{item.price}</Text>
+
+          {/* 💰 Price */}
+          <View style={styles.priceRow}>
+            <Text style={styles.discountPrice}>₹{discountedPrice}</Text>
+            {hasDiscount ? (
+              <>
+                <Text style={styles.originalPrice}>₹{item.price}</Text>
+                <Text style={styles.offText}>{discountPercent}% OFF</Text>
+              </>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.actions}>
@@ -288,23 +280,12 @@ const ProductScreen = () => {
     );
   };
 
-  // ✅ Search toggle
-  const toggleSearch = () => {
-    if (searchVisible) {
-      setSearchQuery("");
-      setSuggestions([]);
-      setFilteredProducts(products);
-      Keyboard.dismiss();
-    }
-    setSearchVisible(!searchVisible);
-  };
-
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Our Products</Text>
-        <TouchableOpacity onPress={toggleSearch}>
+        <TouchableOpacity onPress={() => setSearchVisible(!searchVisible)}>
           <Ionicons
             name={searchVisible ? "close" : "search"}
             size={24}
@@ -315,31 +296,13 @@ const ProductScreen = () => {
 
       {/* Search Bar */}
       {searchVisible && (
-        <>
-          <TextInput
-            style={styles.searchBar}
-            placeholder="Search by name, category, or catalogue..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={() => handleSearch(searchQuery)}
-          />
-
-          {/* 🔁 Search History */}
-          {searchHistory.length > 0 && (
-            <View style={styles.historyContainer}>
-              {searchHistory.map((item, index) => (
-                <View key={index} style={styles.historyItem}>
-                  <TouchableOpacity onPress={() => handleSearch(item)}>
-                    <Text style={styles.historyText}>{item}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteFromHistory(item)}>
-                    <Ionicons name="trash-outline" size={18} color="#888" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-        </>
+        <TextInput
+          style={styles.searchBar}
+          placeholder="Search by name, category, or catalogue..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
       )}
 
       {/* Product List */}
@@ -378,21 +341,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 8,
   },
-  historyContainer: {
-    backgroundColor: "#fafafa",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#eee",
-    marginBottom: 10,
-    padding: 8,
-  },
-  historyItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 6,
-  },
-  historyText: { fontSize: 15, color: "#333" },
   card: {
     flex: 1,
     margin: 5,
@@ -404,7 +352,19 @@ const styles = StyleSheet.create({
   image: { width: "100%", height: 130, borderRadius: 10, marginBottom: 8 },
   info: { alignItems: "center" },
   name: { fontWeight: "bold", fontSize: 14, color: "#333" },
-  price: { color: "#ff3366", fontSize: 14, marginVertical: 4 },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+  discountPrice: { fontSize: 15, color: "#ff3366", fontWeight: "bold" },
+  originalPrice: {
+    fontSize: 13,
+    color: "#888",
+    textDecorationLine: "line-through",
+  },
+  offText: { fontSize: 12, color: "green", fontWeight: "600" },
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",

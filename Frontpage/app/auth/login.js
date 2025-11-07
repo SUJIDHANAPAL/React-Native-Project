@@ -20,7 +20,7 @@ export default function LoginScreen() {
     signInWithEmailAndPassword(auth, email, password)
       .then(() => {
         // Navigate to the main tab screen after successful login
-        router.replace('/tabs');
+        router.replace('/start');
       })
       .catch(error => {
         let message = '';
