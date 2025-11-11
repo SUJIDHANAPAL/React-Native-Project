@@ -34,41 +34,7 @@ const ProductScreen = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchHistory, setSearchHistory] = useState([]);
 
-  // ✅ Local Trending Products
-  const trendingProducts = [
-    {
-      id: "t1",
-      name: "Stylish Watch",
-      price: 999,
-      image:
-        "https://rukminim2.flixcart.com/image/612/612/xif0q/watch/t/w/i/-original-imahfsz9bqgqdxzd.jpeg?q=70",
-      description: "Trendy wrist watch perfect for daily style.",
-      category: "Accessories",
-      catalogue: "Watches",
-    },
-    {
-      id: "t2",
-      name: "Leather Wallet",
-      price: 499,
-      image:
-        "https://rukminim2.flixcart.com/image/612/612/xif0q/wallet-card-wallet/o/e/p/-original-imah4c69hr9fgbgy.jpeg?q=70",
-      description: "Elegant wallet made from premium leather.",
-      category: "Men",
-      catalogue: "Wallets",
-    },
-    {
-      id: "t3",
-      name: "Sneakers",
-      price: 1299,
-      image:
-        "https://rukminim2.flixcart.com/image/612/612/xif0q/shoe/d/g/n/10-8563-10-killer-green-original-imaheppugddhqged.jpeg?q=70",
-      description: "Comfortable sneakers for your everyday look.",
-      category: "Footwear",
-      catalogue: "Shoes",
-    },
-  ];
-
-  // ✅ Fetch Firestore Products
+  // ✅ Fetch only Firestore Products
   useEffect(() => {
     const fetchProducts = async () => {
       try {
@@ -77,9 +43,8 @@ const ProductScreen = () => {
           id: doc.id,
           ...doc.data(),
         }));
-        const allProducts = [...trendingProducts, ...firestoreProducts];
-        setProducts(allProducts);
-        setFilteredProducts(allProducts);
+        setProducts(firestoreProducts);
+        setFilteredProducts(firestoreProducts);
       } catch (error) {
         console.log("Error fetching products:", error);
       }
@@ -88,7 +53,7 @@ const ProductScreen = () => {
     fetchProducts();
   }, []);
 
-  // ✅ Load search history from AsyncStorage
+  // ✅ Load search history
   useEffect(() => {
     const loadHistory = async () => {
       try {
@@ -101,7 +66,7 @@ const ProductScreen = () => {
     loadHistory();
   }, []);
 
-  // ✅ Save history to AsyncStorage
+  // ✅ Save search history
   const saveHistory = async (updatedHistory) => {
     try {
       await AsyncStorage.setItem("searchHistory", JSON.stringify(updatedHistory));
@@ -110,7 +75,7 @@ const ProductScreen = () => {
     }
   };
 
-  // ✅ Add new search to history
+  // ✅ Add new search
   const addToHistory = async (queryText) => {
     if (!queryText.trim()) return;
     const lower = queryText.trim().toLowerCase();
@@ -120,7 +85,7 @@ const ProductScreen = () => {
     saveHistory(updated);
   };
 
-  // ✅ Delete one item from history
+  // ✅ Delete search
   const deleteFromHistory = async (item) => {
     const updated = searchHistory.filter((q) => q !== item);
     setSearchHistory(updated);
@@ -193,7 +158,7 @@ const ProductScreen = () => {
     }
   };
 
-  // 🔍 Search logic (case-insensitive)
+  // 🔍 Search logic
   useEffect(() => {
     const queryText = searchQuery.toLowerCase().trim();
     if (queryText === "") {
@@ -211,7 +176,7 @@ const ProductScreen = () => {
     setFilteredProducts(matched);
   }, [searchQuery, products]);
 
-  // 🧩 Render each product card
+  // 🧩 Render product card
   const renderItem = ({ item }) => {
     const isWishlisted = wishlist.includes(item.id);
     const isInCart = cart.includes(item.id);
@@ -247,15 +212,14 @@ const ProductScreen = () => {
             {item.name}
           </Text>
 
-          {/* 💰 Price */}
           <View style={styles.priceRow}>
             <Text style={styles.discountPrice}>₹{discountedPrice}</Text>
-            {hasDiscount ? (
+            {hasDiscount && (
               <>
                 <Text style={styles.originalPrice}>₹{item.price}</Text>
                 <Text style={styles.offText}>{discountPercent}% OFF</Text>
               </>
-            ) : null}
+            )}
           </View>
         </View>
 
@@ -282,7 +246,6 @@ const ProductScreen = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Our Products</Text>
         <TouchableOpacity onPress={() => setSearchVisible(!searchVisible)}>
@@ -294,7 +257,6 @@ const ProductScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Search Bar */}
       {searchVisible && (
         <TextInput
           style={styles.searchBar}
@@ -305,7 +267,6 @@ const ProductScreen = () => {
         />
       )}
 
-      {/* Product List */}
       {filteredProducts.length === 0 ? (
         <Text style={styles.noProductText}>No products found</Text>
       ) : (

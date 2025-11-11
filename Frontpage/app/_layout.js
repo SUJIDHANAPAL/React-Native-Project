@@ -2,7 +2,6 @@ import { Drawer } from "expo-router/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { DrawerContentScrollView, DrawerItem } from "@react-navigation/drawer";
 import { useRouter } from "expo-router";
-import { View, Text } from "react-native";
 
 function CustomDrawerContent(props) {
   const router = useRouter();
@@ -64,6 +63,15 @@ export default function RootLayout() {
         drawerActiveTintColor: "#ff3366",
         drawerLabelStyle: { fontSize: 16 },
       }}
-    />
+    >
+      {/* ✅ This ensures Drawer actually wraps Tabs */}
+      <Drawer.Screen
+        name="tabs"
+        options={{
+          drawerLabel: "Main Tabs",
+          title: "Main Tabs",
+        }}
+      />
+    </Drawer>
   );
 }

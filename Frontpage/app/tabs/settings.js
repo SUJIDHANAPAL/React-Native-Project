@@ -32,7 +32,7 @@ export default function SettingsScreen() {
         <List.Item
           title="My Orders"
           left={() => <List.Icon icon="cart-outline" />}
-          onPress={() => router.push('/orders')}
+          onPress={() => router.push('/auth/orders/myorders')}
         />
         <Divider />
         <List.Item

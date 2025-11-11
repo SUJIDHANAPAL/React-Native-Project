@@ -11,6 +11,7 @@ export default function Layout() {
       <Stack.Screen name="admin/Subcategories" options={{ title: "Subcategories" }} />
       <Stack.Screen name="admin/Tags" options={{ title: "Tags" }} />
       <Stack.Screen name="admin/Catalogue" options={{ title: "Catalogue" }} />
+      <Stack.Screen name="admin/AdminOrders" options={{ title:"Order"}} />
    </Stack>
   );
 }

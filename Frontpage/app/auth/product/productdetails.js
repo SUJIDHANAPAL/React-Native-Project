@@ -23,7 +23,7 @@ import {
 } from "firebase/firestore";
 
 export default function ProductDetails() {
-  const { id, name, price, discount, rating, image, description } =
+  const { id, name, price, discountPrice, rating, image, description, type } =
     useLocalSearchParams();
   const router = useRouter();
 
@@ -31,51 +31,61 @@ export default function ProductDetails() {
   const [wishlist, setWishlist] = useState([]);
   const [cart, setCart] = useState([]);
 
-  // 🔥 Load product data (Firestore or trending)
-  useEffect(() => {
-    if (!id) return;
+  // ✅ Always load product from Firestore first
+useEffect(() => {
+  if (!id) return;
+  let unsubscribe;
 
-    let unsubscribe;
+  const loadProduct = () => {
+    const docRef = doc(db, "products", id);
+    unsubscribe = onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        console.log("🔥 Product data:", data); // debug log
 
-    const loadProduct = () => {
-      // ✅ If it's a trending product (like t1, t2...), use local params only
-      if (id.startsWith("t")) {
+        const p = Number(data.price) || 0;
+        const dp = Number(data.discountPrice) || 0;
+        const rt =
+          data.rating !== undefined && data.rating !== null
+            ? Number(data.rating)
+            : 0;
+
+        setProduct({
+          id: snap.id,
+          name: data.name || "Unknown Product",
+          description:
+            data.description || "Beautiful product perfect for you!",
+          image: data.image || "",
+          price: p,
+          discountPrice: dp > 0 && dp < p ? dp : p,
+          rating: rt,
+        });
+      } else {
+        // Fallback: use local values (for trending or dummy data)
+        const parsedPrice = Number(price) || 0;
+        const parsedDiscount = Number(discountPrice) || 0;
+        const parsedRating = rating ? Number(rating) : 0;
+
         setProduct({
           id,
-          name,
-          price: Number(price) || 0,
-          discount: Number(discount) || 0,
-          rating: Number(rating) || 0,
+          name: name || "Unnamed Product",
+          price: parsedPrice,
+          discountPrice:
+            parsedDiscount > 0 && parsedDiscount < parsedPrice
+              ? parsedDiscount
+              : parsedPrice,
+          rating: parsedRating,
           image,
           description: description || "Beautiful product perfect for you!",
         });
-        return; // ⛔ skip Firestore listener
       }
+    });
+  };
 
-      // ✅ Firestore real-time listener for product details
-      const docRef = doc(db, "products", id);
-      unsubscribe = onSnapshot(docRef, (snap) => {
-        if (snap.exists()) {
-          const data = snap.data();
-          setProduct({
-            id: snap.id,
-            name: data.name || "Unknown Product",
-            description:
-              data.description || "Beautiful product perfect for you!",
-            image: data.image || "",
-            price: Number(data.price) || 0,
-            discount: Number(data.discount) || 0,
-            rating: Number(data.rating) || 0,
-          });
-        } else {
-          Alert.alert("Product not found", "This product no longer exists.");
-        }
-      });
-    };
+  loadProduct();
+  return () => unsubscribe && unsubscribe();
+}, [id]);
 
-    loadProduct();
-    return () => unsubscribe && unsubscribe();
-  }, [id]);
 
   // 🧡 Real-time Wishlist & Cart
   useEffect(() => {
@@ -99,11 +109,21 @@ export default function ProductDetails() {
       </View>
     );
 
-  // 💰 Price & Discount Calculation
-  const hasDiscount = product.discount > 0;
-  const discountedPrice = hasDiscount
-    ? Math.round(product.price - (product.price * product.discount) / 100)
+  // 💰 Price & Discount
+  const hasValidDiscount =
+    product.discountPrice &&
+    product.discountPrice > 0 &&
+    product.discountPrice < product.price;
+
+  const displayPrice = hasValidDiscount
+    ? product.discountPrice
     : product.price;
+
+  const discountPercent = hasValidDiscount
+    ? Math.round(
+        ((product.price - product.discountPrice) / product.price) * 100
+      )
+    : 0;
 
   // 🧡 Wishlist Toggle
   const toggleWishlist = async () => {
@@ -155,13 +175,27 @@ export default function ProductDetails() {
   const isWishlisted = wishlist.includes(product.id);
   const isInCart = cart.includes(product.id);
 
+  // ⭐ Render stars visually
+  const renderStars = (ratingValue) => {
+    const stars = [];
+    for (let i = 1; i <= 5; i++) {
+      stars.push(
+        <Ionicons
+          key={i}
+          name={i <= Math.floor(ratingValue) ? "star" : "star-outline"}
+          size={18}
+          color="#FFD700"
+        />
+      );
+    }
+    return stars;
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* 🖼 Product Image */}
       <Image source={{ uri: product.image }} style={styles.image} />
 
       <View style={styles.details}>
-        {/* 🔝 Product Name + Wishlist */}
         <View style={styles.headerRow}>
           <Text style={styles.name}>{product.name}</Text>
           <TouchableOpacity onPress={toggleWishlist}>
@@ -173,23 +207,29 @@ export default function ProductDetails() {
           </TouchableOpacity>
         </View>
 
-        {/* 💰 Price + Discount */}
+        {/* ⭐ Rating Section */}
+        <View style={styles.ratingRow}>
+          {renderStars(product.rating)}
+          <Text style={styles.ratingText}>
+            {product.rating ? product.rating.toFixed(1) : "0.0"} / 5
+          </Text>
+        </View>
+
+        {/* 💰 Price Section */}
         <View style={styles.priceRow}>
-          <Text style={styles.discountPrice}>₹{discountedPrice}</Text>
-          {hasDiscount ? (
+          <Text style={styles.discountPrice}>₹{displayPrice}</Text>
+          {hasValidDiscount ? (
             <>
               <Text style={styles.originalPrice}>₹{product.price}</Text>
-              <Text style={styles.offText}>{product.discount}% OFF</Text>
+              <Text style={styles.offText}>{discountPercent}% OFF</Text>
             </>
           ) : (
-            <Text style={styles.noDiscount}>No discount</Text>
+            <Text style={styles.noDiscount}>No discount available</Text>
           )}
         </View>
 
-        {/* 📝 Description */}
         <Text style={styles.desc}>{product.description}</Text>
 
-        {/* 🛒 Add to Cart Button */}
         <Button
           mode="contained"
           onPress={toggleCart}
@@ -198,7 +238,6 @@ export default function ProductDetails() {
           {isInCart ? "Added to Cart" : "Add to Cart"}
         </Button>
 
-        {/* ⬅️ Back Button */}
         <TouchableOpacity onPress={() => router.back()} style={styles.back}>
           <Ionicons name="arrow-back" size={20} color="#ff3366" />
           <Text style={styles.backText}>Back</Text>
@@ -219,6 +258,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   name: { fontSize: 22, fontWeight: "bold", color: "#333" },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 6,
+    gap: 3,
+  },
+  ratingText: { marginLeft: 5, fontSize: 15, color: "#555" },
   priceRow: {
     flexDirection: "row",
     alignItems: "center",

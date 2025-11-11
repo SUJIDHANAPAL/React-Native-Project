@@ -4,10 +4,12 @@ import { Text, Card, Button } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import { db } from "../../firebaseConfig";
 import { collection, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import { useRouter } from "expo-router";
 
 const AddToCart = () => {
   const [cart, setCart] = useState([]);
   const [total, setTotal] = useState(0);
+  const router = useRouter();
 
   // ✅ Live cart updates
   useEffect(() => {
@@ -15,8 +17,10 @@ const AddToCart = () => {
       const cartItems = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setCart(cartItems);
 
-      // 🔢 Calculate total price
-      const sum = cartItems.reduce((acc, item) => acc + item.price * (item.quantity || 1), 0);
+      const sum = cartItems.reduce(
+        (acc, item) => acc + item.price * (item.quantity || 1),
+        0
+      );
       setTotal(sum);
     });
 
@@ -28,17 +32,21 @@ const AddToCart = () => {
     await deleteDoc(doc(db, "cart", id));
   };
 
-  // 💳 Simulate checkout
+  // 💳 Navigate to Checkout Page
   const handleCheckout = () => {
     if (cart.length === 0) {
       Alert.alert("Cart is empty", "Add some products first!");
       return;
     }
 
-    Alert.alert(
-      "Order Confirmed 🎉",
-      `Your total is ₹${total}. Thank you for shopping with us!`
-    );
+    // Navigate to checkout with cart data and total
+    router.push({
+      pathname: "/auth/orders/checkout",
+      params: {
+        cart: JSON.stringify(cart),
+        total: total,
+      },
+    });
   };
 
   // 🖼 Render cart item
@@ -65,15 +73,9 @@ const AddToCart = () => {
       ) : (
         <>
           <FlatList data={cart} renderItem={renderItem} keyExtractor={(item) => item.id} />
-
-          {/* 🧾 Total + Checkout */}
           <View style={styles.checkoutBox}>
             <Text style={styles.totalText}>Total: ₹{total}</Text>
-            <Button
-              mode="contained"
-              onPress={handleCheckout}
-              style={styles.checkoutButton}
-            >
+            <Button mode="contained" onPress={handleCheckout} style={styles.checkoutButton}>
               Checkout
             </Button>
           </View>
@@ -87,41 +89,13 @@ export default AddToCart;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-
-  card: {
-    marginBottom: 10,
-    borderRadius: 10,
-    elevation: 2,
-    padding: 10,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  image: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    marginRight: 10,
-  },
-  details: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  price: {
-    color: "#ff3366",
-    fontSize: 15,
-    marginTop: 4,
-  },
-  empty: {
-    fontSize: 18,
-    textAlign: "center",
-    color: "#666",
-    marginTop: 40,
-  },
+  card: { marginBottom: 10, borderRadius: 10, elevation: 2, padding: 10 },
+  row: { flexDirection: "row", alignItems: "center" },
+  image: { width: 80, height: 80, borderRadius: 10, marginRight: 10 },
+  details: { flex: 1 },
+  title: { fontSize: 16, fontWeight: "600" },
+  price: { color: "#ff3366", fontSize: 15, marginTop: 4 },
+  empty: { fontSize: 18, textAlign: "center", color: "#666", marginTop: 40 },
   checkoutBox: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -131,12 +105,6 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
     backgroundColor: "#fafafa",
   },
-  totalText: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  checkoutButton: {
-    backgroundColor: "#ff3366",
-    borderRadius: 8,
-  },
+  totalText: { fontSize: 18, fontWeight: "bold" },
+  checkoutButton: { backgroundColor: "#ff3366", borderRadius: 8 },
 });

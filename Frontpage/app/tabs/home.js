@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Text, Card, Button, Avatar, useTheme } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,40 +35,14 @@ const categories = [
   { id: 5, name: "Accessories", img: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS2grI_f50heLYIjlC-tQbJKWI_LT42BEcVTaMf4rTCwHFzxSWqW3Mjv7c&s" },
 ];
 
-// 🧷 Trending Products (Local)
-const trendingProducts = [
-  {
-    id: 1,
-    name: "Stylish Watch",
-    price: "₹999",
-    discountPrice: "₹949",
-    rating: 4.5,
-    img: "https://rukminim2.flixcart.com/image/612/612/xif0q/watch/t/w/i/-original-imahfsz9bqgqdxzd.jpeg?q=70",
-  },
-  {
-    id: 2,
-    name: "Leather Wallet",
-    price: "₹499",
-    discountPrice: "₹459",
-    rating: 4.2,
-    img: "https://rukminim2.flixcart.com/image/612/612/xif0q/wallet-card-wallet/o/e/p/-original-imah4c69hr9fgbgy.jpeg?q=70",
-  },
-  {
-    id: 3,
-    name: "Sneakers",
-    price: "₹1,399",
-    discountPrice: "₹1,299",
-    rating: 3.8,
-    img: "https://rukminim2.flixcart.com/image/612/612/xif0q/shoe/d/g/n/10-8563-10-killer-green-original-imaheppugddhqged.jpeg?q=70",
-  },
-];
-
 export default function Home() {
   const theme = useTheme();
   const router = useRouter();
   const navigation = useNavigation();
 
   const [wishlistIds, setWishlistIds] = useState([]);
+  const [trendingProducts, setTrendingProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const wishlistRef = collection(db, "wishlist");
 
   // 🩷 Real-time wishlist listener
@@ -77,6 +52,27 @@ export default function Home() {
       setWishlistIds(ids);
     });
     return () => unsubscribe();
+  }, []);
+
+  // 🔥 Fetch Trending Products from Firestore
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const q = query(collection(db, "products"), where("catalogueName", "==", "Trending"));
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTrendingProducts(data);
+      } catch (error) {
+        console.error("Error fetching trending products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrending();
   }, []);
 
   // ❤️ Add to Wishlist
@@ -90,8 +86,8 @@ export default function Home() {
       }
       await addDoc(wishlistRef, {
         productId: product.id,
-        name: product.name,
-        image: product.img,
+        name: product.name || product.productName,
+        image: product.image,
         price: product.price,
       });
       Alert.alert("Added to Wishlist ❤️");
@@ -122,6 +118,14 @@ export default function Home() {
       addToWishlist(product);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#ff3366" />
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={{ backgroundColor: "#fff" }} showsVerticalScrollIndicator={false}>
@@ -188,10 +192,12 @@ export default function Home() {
         <FlatList
           horizontal
           data={trendingProducts}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id}
           showsHorizontalScrollIndicator={false}
           renderItem={({ item }) => {
             const isWishlisted = wishlistIds.includes(item.id);
+            const hasDiscount =
+              item.discountPrice && item.discountPrice < item.price;
             return (
               <TouchableOpacity
                 onPress={() =>
@@ -199,26 +205,31 @@ export default function Home() {
                     pathname: "/auth/product/productdetails",
                     params: {
                       id: item.id,
-                      name: item.name,
-                      price: parseFloat(item.price.replace("₹", "")),
-                      rating: item.rating,
-                      discount: item.discountPrice,
-                      image: item.img,
-                      description:
-                        "Stylish and trendy product from our latest collection.",
+                      type: "trending",
                     },
                   })
                 }
               >
                 <View style={styles.productCard}>
-                  <Image source={{ uri: item.img }} style={styles.productImage} />
+                  <Image source={{ uri: item.image }} style={styles.productImage} />
                   <View style={styles.productInfo}>
-                    <Text style={styles.productName}>{item.name}</Text>
+                    <Text style={styles.productName} numberOfLines={1}>
+                      {item.name || item.productName}
+                    </Text>
+
                     <View style={{ flexDirection: "row", alignItems: "center" }}>
-                      <Text style={styles.discountPrice}>{item.discountPrice}</Text>
-                      <Text style={styles.oldPrice}>{item.price}</Text>
+                      <Text style={styles.discountPrice}>
+                        ₹{hasDiscount ? item.discountPrice : item.price}
+                      </Text>
+                      {hasDiscount && (
+                        <Text style={styles.oldPrice}>₹{item.price}</Text>
+                      )}
                     </View>
-                    <Text style={styles.rating}>⭐ {item.rating}</Text>
+
+                    {/* ⭐ Rating */}
+                    {item.rating ? (
+                      <Text style={styles.rating}>⭐ {item.rating}</Text>
+                    ) : null}
                   </View>
 
                   {/* ❤️ Wishlist */}
@@ -245,28 +256,6 @@ export default function Home() {
           source={{ uri: "https://img.freepik.com/free-vector/flat-sale-background-with-photo_23-2149006712.jpg" }}
           style={styles.saleImage}
         />
-      </Card>
-
-      {/* ✨ New Arrivals */}
-      <View style={styles.section}>
-        <Text variant="titleMedium" style={styles.sectionTitle}>New Arrivals</Text>
-        <Card style={styles.arrivalCard}>
-          <Card.Cover source={{ uri: "https://indian-retailer.s3.ap-south-1.amazonaws.com/s3fs-public/inline-images/W_Image%2002.jpg" }} />
-          <Card.Content>
-            <Text>Summer Collection</Text>
-            <Button textColor="#ff3366">Explore</Button>
-          </Card.Content>
-        </Card>
-      </View>
-
-      {/* 🎯 Sponsored Banner */}
-      <Card style={styles.sponsoredCard}>
-        <Card.Cover
-          source={{ uri: "https://www.westside.com/cdn/shop/articles/summer_casuals_for_men_by_wes_c.png?v=1646466676" }}
-        />
-        <View style={styles.overlay}>
-          <Text style={styles.overlayText}>UP TO 50% OFF</Text>
-        </View>
       </Card>
 
       <View style={{ height: 80 }} />
@@ -306,8 +295,4 @@ const styles = StyleSheet.create({
   heartIcon: { position: "absolute", top: 8, right: 8, backgroundColor: "#fff", borderRadius: 20, padding: 5, elevation: 3 },
   saleBanner: { marginTop: 15, marginHorizontal: 15, borderRadius: 12, overflow: "hidden" },
   saleImage: { width: "100%", height: 120 },
-  arrivalCard: { borderRadius: 12 },
-  sponsoredCard: { padding: 12 },
-  overlay: { position: "absolute", bottom: 0, width: "100%", backgroundColor: "rgba(0,0,0,0.5)", padding: 10 },
-  overlayText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
 });

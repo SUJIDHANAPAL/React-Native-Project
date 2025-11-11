@@ -38,6 +38,9 @@ const AdminSidebar = () => {
             <TouchableOpacity onPress={() => router.push("/admin/Tags")}>
               <Text style={styles.subItem}>Tags</Text>
             </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push("/admin/AdminOrders")}>
+              <Text style={styles.subItem}>AdminOrders</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
