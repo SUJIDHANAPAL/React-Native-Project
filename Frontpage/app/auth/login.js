@@ -1,44 +1,58 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
-import { TextInput, Button } from 'react-native-paper';
-import { Link, useRouter } from 'expo-router';
-import { auth } from '../../firebaseConfig'; // adjusted path
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import React, { useEffect, useState } from "react";
+import { View, StyleSheet, TouchableOpacity, Text, Alert } from "react-native";
+import { TextInput, Button } from "react-native-paper";
+import { Link, useRouter } from "expo-router";
+import { auth } from "../../firebaseConfig";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen() {
-  const [email, setEmail] = React.useState('');
-  const [password, setPassword] = React.useState('');
-  const [passwordVisible, setPasswordVisible] = React.useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const router = useRouter();
 
-  const handleLogin = () => {
+  // ✅ Check login status when app starts
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        await AsyncStorage.setItem("isLoggedIn", "true");
+        router.replace("/tabs/home");
+      } else {
+        await AsyncStorage.removeItem("isLoggedIn");
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // ✅ Handle login
+  const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Missing Info', 'Please enter both email and password');
+      Alert.alert("Missing Info", "Please enter both email and password");
       return;
     }
 
-    signInWithEmailAndPassword(auth, email, password)
-      .then(() => {
-        // Navigate to the main tab screen after successful login
-        router.replace('/start');
-      })
-      .catch(error => {
-        let message = '';
-        switch (error.code) {
-          case 'auth/invalid-email':
-            message = 'Invalid email address format.';
-            break;
-          case 'auth/user-not-found':
-            message = 'No user found with this email.';
-            break;
-          case 'auth/wrong-password':
-            message = 'Incorrect password.';
-            break;
-          default:
-            message = error.message;
-        }
-        Alert.alert('Login Error', message);
-      });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      await AsyncStorage.setItem("isLoggedIn", "true");
+      router.replace("/tabs/home"); // Go to home after login
+    } catch (error) {
+      let message = "";
+      switch (error.code) {
+        case "auth/invalid-email":
+          message = "Invalid email address format.";
+          break;
+        case "auth/user-not-found":
+          message = "No user found with this email.";
+          break;
+        case "auth/wrong-password":
+          message = "Incorrect password.";
+          break;
+        default:
+          message = error.message;
+      }
+      Alert.alert("Login Error", message);
+    }
   };
 
   return (
@@ -62,7 +76,7 @@ export default function LoginScreen() {
         left={<TextInput.Icon icon="lock" />}
         right={
           <TextInput.Icon
-            icon={passwordVisible ? 'eye-off' : 'eye'}
+            icon={passwordVisible ? "eye-off" : "eye"}
             onPress={() => setPasswordVisible(!passwordVisible)}
           />
         }
@@ -103,13 +117,23 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#fff' },
-  title: { fontSize: 26, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
+    backgroundColor: "#fff",
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
   input: { marginBottom: 15 },
-  forgot: { textAlign: 'right', color: '#f43f5e', marginBottom: 10 },
-  button: { backgroundColor: '#f43f5e', marginVertical: 10 },
-  or: { textAlign: 'center', marginVertical: 15 },
-  socials: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
-  bottomText: { textAlign: 'center' },
-  link: { color: '#f43f5e', fontWeight: 'bold' },
+  forgot: { textAlign: "right", color: "#f43f5e", marginBottom: 10 },
+  button: { backgroundColor: "#f43f5e", marginVertical: 10 },
+  or: { textAlign: "center", marginVertical: 15 },
+  socials: { flexDirection: "row", justifyContent: "center", marginBottom: 20 },
+  bottomText: { textAlign: "center" },
+  link: { color: "#f43f5e", fontWeight: "bold" },
 });

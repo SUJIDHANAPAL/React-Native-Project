@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, Alert } from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, IconButton } from "react-native-paper";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { db } from "../../../firebaseConfig";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, getDocs, deleteDoc, doc } from "firebase/firestore";
 
 const Checkout = () => {
   const router = useRouter();
@@ -53,35 +53,51 @@ const Checkout = () => {
     }
   };
 
+  // 🗑️ Clear cart after order
+  const clearCart = async () => {
+    const snapshot = await getDocs(collection(db, "cart"));
+    const deletePromises = snapshot.docs.map((docSnap) =>
+      deleteDoc(doc(db, "cart", docSnap.id))
+    );
+    await Promise.all(deletePromises);
+  };
+
   // 🧾 Place Order
   const placeOrder = async () => {
-  if (!name || !address || !phone) {
-    Alert.alert("Missing Info", "Please fill all billing details.");
-    return;
-  }
+    if (!name || !address || !phone) {
+      Alert.alert("Missing Info", "Please fill all billing details.");
+      return;
+    }
 
-  try {
-    console.log("🧾 Adding order to Firestore...");
-    const docRef = await addDoc(collection(db, "orders"), {
-      name:userName,
-      address:address,
-      phone:userPhone,
-      payment:paymentMethod,
-      cartItems:cartItems,
-      totalAmount: finalTotal,
-      orderStatus: "Placed",
-      createdAt: serverTimestamp(),
-    });
-    console.log("✅ Order stored with ID:", docRef.id);
+    try {
+      const docRef = await addDoc(collection(db, "orders"), {
+        name,
+        address,
+        phone,
+        payment,
+        cartItems,
+        totalAmount: finalTotal,
+        orderStatus: "Placed",
+        createdAt: serverTimestamp(),
+      });
 
-    Alert.alert("✅ Order Placed", "Your order has been placed successfully!");
-    router.replace("/auth/orders/myorders");
-  } catch (error) {
-    console.log("❌ Error placing order:", error);
-    Alert.alert("Error", "Something went wrong while placing your order.");
-  }
-};
+      await clearCart(); // ✅ clear cart after successful order
 
+      Alert.alert(
+        "✅ Order Placed",
+        "Your order has been placed successfully!"
+      );
+      setCartItems([]); // Clear state cart after placing order
+    } catch (error) {
+      console.log("❌ Error placing order:", error);
+      Alert.alert("Error", "Something went wrong while placing your order.");
+    }
+  };
+
+  // 🛍️ Shop More → go to All Products
+  const shopMore = () => {
+    router.replace("/auth/product/product"); 
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -118,32 +134,30 @@ const Checkout = () => {
       {/* 🛒 Order Summary */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Order Summary</Text>
-        {cartItems.map((item, index) => (
-          <View key={index} style={styles.itemRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-              <Text>₹{item.price}</Text>
-            </View>
-            <View style={styles.qtyControl}>
-              <IconButton
-                icon="minus"
-                size={18}
-                onPress={() => decreaseQty(index)}
-              />
-              <Text style={{ marginHorizontal: 8, fontWeight: "600" }}>
-                {item.quantity || 1}
+        {cartItems.length > 0 ? (
+          cartItems.map((item, index) => (
+            <View key={index} style={styles.itemRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontWeight: "600" }}>{item.name}</Text>
+                <Text>₹{item.price}</Text>
+              </View>
+              <View style={styles.qtyControl}>
+                <IconButton icon="minus" size={18} onPress={() => decreaseQty(index)} />
+                <Text style={{ marginHorizontal: 8, fontWeight: "600" }}>
+                  {item.quantity || 1}
+                </Text>
+                <IconButton icon="plus" size={18} onPress={() => increaseQty(index)} />
+              </View>
+              <Text style={{ width: 60, textAlign: "right" }}>
+                ₹{(item.price * (item.quantity || 1)).toFixed(2)}
               </Text>
-              <IconButton
-                icon="plus"
-                size={18}
-                onPress={() => increaseQty(index)}
-              />
             </View>
-            <Text style={{ width: 60, textAlign: "right" }}>
-              ₹{(item.price * (item.quantity || 1)).toFixed(2)}
-            </Text>
-          </View>
-        ))}
+          ))
+        ) : (
+          <Text style={{ textAlign: "center", marginVertical: 20 }}>
+            🛒 Your cart is empty
+          </Text>
+        )}
         <View style={styles.itemRow}>
           <Text style={{ flex: 1, fontWeight: "bold" }}>Total:</Text>
           <Text style={{ fontWeight: "bold" }}>₹{finalTotal.toFixed(2)}</Text>
@@ -181,9 +195,16 @@ const Checkout = () => {
         </RadioButton.Group>
       </Card>
 
-      <Button mode="contained" onPress={placeOrder} style={styles.orderButton}>
-        Place My Order
-      </Button>
+      {/* ✅ Buttons */}
+      {cartItems.length > 0 ? (
+        <Button mode="contained" onPress={placeOrder} style={styles.orderButton}>
+          Place My Order
+        </Button>
+      ) : (
+        <Button mode="contained" onPress={shopMore} style={styles.shopMoreButton}>
+          🛍️ Shop More
+        </Button>
+      )}
     </ScrollView>
   );
 };
@@ -213,6 +234,12 @@ const styles = StyleSheet.create({
   radioRow: { flexDirection: "row", alignItems: "center", marginBottom: 6 },
   orderButton: {
     backgroundColor: "#ff3366",
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginBottom: 30,
+  },
+  shopMoreButton: {
+    backgroundColor: "#4caf50",
     paddingVertical: 10,
     borderRadius: 10,
     marginBottom: 30,

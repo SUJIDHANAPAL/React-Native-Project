@@ -1,5 +1,7 @@
-import { Redirect } from 'expo-router';
+import { Redirect } from "expo-router";
+import { auth } from "../firebaseConfig";
 
 export default function Index() {
-  return <Redirect href="/auth/login" />;
+  const user = auth.currentUser;
+  return <Redirect href={user ? "/tabs/home" : "/auth/login"} />;
 }

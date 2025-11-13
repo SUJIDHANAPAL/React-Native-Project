@@ -1,61 +1,156 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import { db } from "../../firebaseConfig";
-import { collection, addDoc, getDocs, query, orderBy } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 
 export default function Subcategories() {
   const [subCategoryName, setSubCategoryName] = useState("");
   const [categoryName, setCategoryName] = useState("");
+  const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
+  const [editingId, setEditingId] = useState(null); // 🆕 Track edit mode
 
-  // 🔹 Load subcategories from Firestore
+  // 🔹 Fetch categories for dropdown
   useEffect(() => {
-    const fetchSubcategories = async () => {
+    const fetchCategories = async () => {
       try {
-        const q = query(collection(db, "subcategories"), orderBy("createdAt", "desc"));
-        const querySnapshot = await getDocs(q);
+        const querySnapshot = await getDocs(collection(db, "categories"));
         const list = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
-        setSubcategories(list);
+        setCategories(list);
       } catch (error) {
-        console.log("Error fetching subcategories:", error);
+        console.log("Error fetching categories:", error);
       }
     };
-    fetchSubcategories();
+    fetchCategories();
   }, []);
 
-  // 🔹 Add new subcategory
-  const addSubcategory = async () => {
+  // 🔹 Load subcategories
+  const loadSubcategories = async () => {
+    try {
+      const q = query(collection(db, "subcategories"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+      const list = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setSubcategories(list);
+    } catch (error) {
+      console.log("Error fetching subcategories:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadSubcategories();
+  }, []);
+
+  // 🔹 Add or Update Subcategory
+  const handleSave = async () => {
     if (!subCategoryName.trim() || !categoryName.trim()) {
-      alert("Please enter both Category and Subcategory name!");
+      alert("Please select a category and enter a subcategory name!");
       return;
     }
+
     try {
-      await addDoc(collection(db, "subcategories"), {
-        subCategoryName,
-        categoryName,
-        createdAt: new Date(),
-      });
-      alert("Subcategory added successfully!");
+      if (editingId) {
+        // 📝 Update existing subcategory
+        const subRef = doc(db, "subcategories", editingId);
+        await updateDoc(subRef, {
+          categoryName,
+          subCategoryName,
+        });
+        alert("Subcategory updated successfully!");
+        setEditingId(null);
+      } else {
+        // ➕ Add new subcategory
+        await addDoc(collection(db, "subcategories"), {
+          categoryName,
+          subCategoryName,
+          createdAt: new Date(),
+        });
+        alert("Subcategory added successfully!");
+      }
+
+      // Clear inputs and refresh
       setSubCategoryName("");
       setCategoryName("");
+      loadSubcategories();
     } catch (error) {
-      console.log("Error adding subcategory:", error);
+      console.log("Error saving subcategory:", error);
     }
+  };
+
+  // 🔹 Edit Subcategory
+  const handleEdit = (item) => {
+    setEditingId(item.id);
+    setCategoryName(item.categoryName);
+    setSubCategoryName(item.subCategoryName);
+  };
+
+  // 🔹 Delete Subcategory
+  const handleDelete = async (id) => {
+    Alert.alert("Confirm Delete", "Are you sure you want to delete this subcategory?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(db, "subcategories", id));
+            alert("Subcategory deleted successfully!");
+            loadSubcategories();
+          } catch (error) {
+            console.log("Error deleting subcategory:", error);
+          }
+        },
+      },
+    ]);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>🗂 Add Subcategory</Text>
+      <Text style={styles.header}>
+        {editingId ? "✏️ Edit Subcategory" : "🗂 Add Subcategory"}
+      </Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Category Name"
-        value={categoryName}
-        onChangeText={setCategoryName}
-      />
+      {/* 👇 Category Dropdown */}
+      <View style={styles.dropdownContainer}>
+        <Picker
+          selectedValue={categoryName}
+          onValueChange={(itemValue) => setCategoryName(itemValue)}
+          style={styles.dropdown}
+        >
+          <Picker.Item label="Select a Category" value="" />
+          {categories.map((cat) => (
+            <Picker.Item
+              key={cat.id}
+              label={cat.categoryName}
+              value={cat.categoryName}
+            />
+          ))}
+        </Picker>
+      </View>
+
       <TextInput
         style={styles.input}
         placeholder="Enter Subcategory Name"
@@ -63,8 +158,10 @@ export default function Subcategories() {
         onChangeText={setSubCategoryName}
       />
 
-      <TouchableOpacity style={styles.addButton} onPress={addSubcategory}>
-        <Text style={styles.addButtonText}>Add Subcategory</Text>
+      <TouchableOpacity style={styles.addButton} onPress={handleSave}>
+        <Text style={styles.addButtonText}>
+          {editingId ? "Update Subcategory" : "Add Subcategory"}
+        </Text>
       </TouchableOpacity>
 
       <Text style={styles.listTitle}>📋 Existing Subcategories</Text>
@@ -76,6 +173,15 @@ export default function Subcategories() {
             <Text style={styles.itemText}>
               {item.categoryName} → {item.subCategoryName}
             </Text>
+
+            <View style={styles.actionButtons}>
+              <TouchableOpacity onPress={() => handleEdit(item)}>
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleDelete(item.id)}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -85,7 +191,23 @@ export default function Subcategories() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
-  header: { fontSize: 22, fontWeight: "bold", color: "#4B0082", marginBottom: 20 },
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#4B0082",
+    marginBottom: 20,
+  },
+  dropdownContainer: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    marginBottom: 10,
+    backgroundColor: "#fff",
+  },
+  dropdown: {
+    height: 50,
+    width: "100%",
+  },
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -102,7 +224,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   addButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  listTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 10, color: "#4B0082" },
+  listTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#4B0082",
+  },
   item: {
     backgroundColor: "#fff",
     padding: 12,
@@ -112,4 +239,18 @@ const styles = StyleSheet.create({
     borderColor: "#ddd",
   },
   itemText: { fontSize: 16, color: "#333" },
+  actionButtons: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    marginTop: 8,
+  },
+  editText: {
+    color: "#4B0082",
+    fontWeight: "bold",
+    marginRight: 15,
+  },
+  deleteText: {
+    color: "red",
+    fontWeight: "bold",
+  },
 });

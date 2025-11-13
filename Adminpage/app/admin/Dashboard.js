@@ -89,6 +89,16 @@ export default function Dashboard() {
           <Ionicons name="pricetags-outline" size={20} color="#fff" />
           <Text style={styles.menuText}>Tags</Text>
         </TouchableOpacity>
+
+         <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => navigateTo("/admin/AdminOrders")}
+        >
+          <Ionicons name="cart-outline" size={20} color="#fff" />
+          <Text style={styles.menuText}>Orders</Text>
+        </TouchableOpacity>
+
+
       </Animated.View>
 
       {/* 🔹 Main Content */}

@@ -2,29 +2,23 @@ import { View, ImageBackground, StyleSheet } from "react-native";
 import { Text, Button } from "react-native-paper";
 import { useRouter } from "expo-router";
 
-
 export default function GetStartedScreen() {
   const router = useRouter();
-  
-const gotoHome = ()=>{
-    router.push('/tabs/home')
-}   
 
+  const gotoLogin = () => {
+    router.push("/auth/login");
+  };
 
   return (
     <ImageBackground
       source={require("../assets/img/start.jpg")}
-      style={styles.bg }
+      style={styles.bg}
     >
       <View style={styles.overlay}>
         <Text variant="headlineMedium" style={styles.text}>
           You want Authentic, here you go!
         </Text>
-        <Button
-          mode="contained"
-          onPress={gotoHome}
-          style={styles.button}
-        >
+        <Button mode="contained" onPress={gotoLogin} style={styles.button}>
           Get Started
         </Button>
       </View>
@@ -34,8 +28,7 @@ const gotoHome = ()=>{
 
 const styles = StyleSheet.create({
   bg: { flex: 1, justifyContent: "flex-end" },
-  overlay: { padding: 50  
-  },
+  overlay: { padding: 50 },
   text: { color: "white", marginBottom: 50 },
-  button: { backgroundColor: "#ff3366",marginTop:-20 },
+  button: { backgroundColor: "#ff3366", marginTop: -20 },
 });

@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { Text, Card, Button, Avatar, useTheme } from "react-native-paper";
+import { Text, Card, Avatar, useTheme } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
 import Swiper from "react-native-swiper";
 import { useRouter } from "expo-router";
@@ -45,7 +45,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const wishlistRef = collection(db, "wishlist");
 
-  // 🩷 Real-time wishlist listener
+  // ❤️ Real-time wishlist listener
   useEffect(() => {
     const unsubscribe = onSnapshot(wishlistRef, (snapshot) => {
       const ids = snapshot.docs.map((doc) => doc.data().productId);
@@ -54,7 +54,7 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  // 🔥 Fetch Trending Products from Firestore
+  // 🔥 Fetch Trending Products
   useEffect(() => {
     const fetchTrending = async () => {
       try {
@@ -86,9 +86,11 @@ export default function Home() {
       }
       await addDoc(wishlistRef, {
         productId: product.id,
-        name: product.name || product.productName,
+        name: product.name || product.productName || "Unnamed Product",
         image: product.image,
         price: product.price,
+        discountPrice: product.discountPrice || null,
+        rating: product.rating || 4.0,
       });
       Alert.alert("Added to Wishlist ❤️");
     } catch (error) {
@@ -101,9 +103,9 @@ export default function Home() {
     try {
       const q = query(wishlistRef, where("productId", "==", product.id));
       const snapshot = await getDocs(q);
-      snapshot.forEach(async (docSnap) => {
+      for (const docSnap of snapshot.docs) {
         await deleteDoc(doc(db, "wishlist", docSnap.id));
-      });
+      }
       Alert.alert("Removed from Wishlist 💔");
     } catch (error) {
       console.error("Error removing wishlist item:", error);
@@ -157,20 +159,28 @@ export default function Home() {
         <Text style={styles.searchPlaceholder}>Search for products</Text>
       </TouchableOpacity>
 
-      {/* 🛍️ Categories */}
-      <FlatList
-        horizontal
-        data={categories}
-        keyExtractor={(item) => item.id.toString()}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryList}
-        renderItem={({ item }) => (
-          <View style={styles.categoryItem}>
-            <Avatar.Image size={55} source={{ uri: item.img }} />
-            <Text style={styles.categoryText}>{item.name}</Text>
-          </View>
-        )}
-      />
+    {/* 🛍️ Categories */}
+<FlatList
+  horizontal
+  data={categories}
+  keyExtractor={(item) => item.id.toString()}
+  showsHorizontalScrollIndicator={false}
+  contentContainerStyle={styles.categoryList}
+  renderItem={({ item }) => (
+    <TouchableOpacity
+      style={styles.categoryItem}
+      onPress={() =>
+        router.push({
+          pathname: "/auth/product/categoryProducts",
+          params: { category: item.name },
+        })
+      }
+    >
+      <Avatar.Image size={55} source={{ uri: item.img }} />
+      <Text style={styles.categoryText}>{item.name}</Text>
+    </TouchableOpacity>
+  )}
+/>
 
       {/* 🎉 Offer Banner */}
       <Card style={styles.bannerCard}>
@@ -203,10 +213,7 @@ export default function Home() {
                 onPress={() =>
                   router.push({
                     pathname: "/auth/product/productdetails",
-                    params: {
-                      id: item.id,
-                      type: "trending",
-                    },
+                    params: { id: item.id, type: "trending" },
                   })
                 }
               >
@@ -226,13 +233,11 @@ export default function Home() {
                       )}
                     </View>
 
-                    {/* ⭐ Rating */}
-                    {item.rating ? (
-                      <Text style={styles.rating}>⭐ {item.rating}</Text>
-                    ) : null}
+                    {item.rating && (
+                      <Text style={styles.rating}>⭐ {item.rating.toFixed(1)}</Text>
+                    )}
                   </View>
 
-                  {/* ❤️ Wishlist */}
                   <TouchableOpacity
                     style={styles.heartIcon}
                     onPress={() => toggleWishlist(item)}
@@ -264,7 +269,14 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 50, paddingBottom: 8 },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+    paddingTop: 50,
+    paddingBottom: 8,
+  },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",

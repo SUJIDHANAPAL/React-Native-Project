@@ -10,21 +10,31 @@ const AdminSidebar = () => {
   const toggleSidebar = () => setExpanded(!expanded);
 
   return (
-    <Animated.View style={[styles.sidebar, expanded ? { width: 220 } : { width: 70 }]}>
+    <Animated.View
+      style={[
+        styles.sidebar,
+        expanded ? { width: 220 } : { width: 70 },
+      ]}
+    >
+      {/* Toggle Menu Button */}
       <TouchableOpacity onPress={toggleSidebar} style={styles.menuIcon}>
-        <Ionicons name={expanded ? "menu" : "menu-outline"} size={28} color="#fff" />
+        <Ionicons
+          name={expanded ? "menu" : "menu-outline"}
+          size={28}
+          color="#fff"
+        />
       </TouchableOpacity>
 
-      {/* Product Section */}
+      {/* Products Section */}
       <View style={styles.section}>
-        <TouchableOpacity onPress={() => setExpanded(!expanded)}>
+        <TouchableOpacity>
           <Text style={styles.sectionTitle}>🛍️ Products</Text>
         </TouchableOpacity>
 
         {expanded && (
           <View style={styles.subMenu}>
-            <TouchableOpacity onPress={() => router.push("/admin/AllProducts")}>
-              <Text style={styles.subItem}>All Products</Text>
+            <TouchableOpacity onPress={() => router.push("/admin/AddProduct")}>
+              <Text style={styles.subItem}>Add Product</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push("/admin/Categories")}>
               <Text style={styles.subItem}>Categories</Text>
@@ -39,7 +49,7 @@ const AdminSidebar = () => {
               <Text style={styles.subItem}>Tags</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => router.push("/admin/AdminOrders")}>
-              <Text style={styles.subItem}>AdminOrders</Text>
+              <Text style={styles.subItem}>Admin Orders</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Avatar, Text, Button, TextInput, Card, Divider } from 'react-native-paper';
 import { useRouter } from 'expo-router';
+import { getAuth, signOut } from 'firebase/auth';
 
 export default function Profile() {
   const router = useRouter();
+  const auth = getAuth();
 
-  
   const [user, setUser] = useState({
     name: 'John Doe',
     email: 'john@example.com',
@@ -22,16 +23,21 @@ export default function Profile() {
     phone: user.phone,
   });
 
-  useEffect(() => {
-    // In real app, fetch user profile from server here
-    // setUser(...)
-  }, []);
-
   const handleSave = () => {
-    // Call API to update profile
-    // On success:
     setUser({ ...user, ...formData });
     setEditMode(false);
+  };
+
+  // 🔹 Logout function
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      Alert.alert("Logout Successful", "You have been signed out.");
+      router.replace('/auth/login'); // Redirect to login
+    } catch (error) {
+      console.error("Error during logout:", error);
+      Alert.alert("Error", "Failed to logout. Please try again.");
+    }
   };
 
   return (
@@ -51,45 +57,34 @@ export default function Profile() {
           <TextInput
             label="Name"
             value={formData.name}
-            onChangeText={(text) =>
-              setFormData((d) => ({ ...d, name: text }))
-            }
+            onChangeText={(text) => setFormData((d) => ({ ...d, name: text }))}
             disabled={!editMode}
             style={styles.input}
           />
           <TextInput
             label="Email"
             value={formData.email}
-            onChangeText={(text) =>
-              setFormData((d) => ({ ...d, email: text }))
-            }
+            onChangeText={(text) => setFormData((d) => ({ ...d, email: text }))}
             disabled={!editMode}
             style={styles.input}
           />
           <TextInput
             label="Phone"
             value={formData.phone}
-            onChangeText={(text) =>
-              setFormData((d) => ({ ...d, phone: text }))
-            }
+            onChangeText={(text) => setFormData((d) => ({ ...d, phone: text }))}
             disabled={!editMode}
             style={styles.input}
           />
 
           {editMode ? (
-            <Button
-              mode="contained"
-              
-              onPress={handleSave}
-              style={styles.button}
-            >
+            <Button mode="contained" onPress={handleSave} style={styles.button}>
               Save Changes
             </Button>
           ) : (
             <Button
               mode="outlined"
-               buttonColor="#f24671ff"
-               textColor='white'
+              buttonColor="#f24671ff"
+              textColor="white"
               onPress={() => setEditMode(true)}
               style={styles.button}
             >
@@ -100,13 +95,10 @@ export default function Profile() {
       </Card>
 
       <Button
-        mode="text"
-        
-        onPress={() => {
-          // Logout logic
-          // e.g. clear auth tokens, then navigate
-          router.replace('/login'); // or wherever
-        }}
+        mode="contained-tonal"
+        textColor="#fff"
+        buttonColor="#4B0082"
+        onPress={handleLogout}
         style={{ marginTop: 30 }}
       >
         Logout
@@ -123,7 +115,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 30,
-    marginTop:30,
+    marginTop: 30,
   },
   name: {
     marginTop: 15,
