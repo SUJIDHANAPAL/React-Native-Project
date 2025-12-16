@@ -5,7 +5,8 @@ deactivateKeepAwake();
 
 export default function Layout() {
   return (
-    <Stack>
+    <Stack screenOptions={{headerShown: false}}>
+     
       <Stack.Screen name="index" options={{ title: "Login" }} />
       <Stack.Screen name="auth/Register" options={{ title: "Register" }} />
       <Stack.Screen name="admin/AddProduct" options={{ title: "Add Product" }} />
@@ -15,6 +16,7 @@ export default function Layout() {
       <Stack.Screen name="admin/Tags" options={{ title: "Tags" }} />
       <Stack.Screen name="admin/Catalogue" options={{ title: "Catalogue" }} />
       <Stack.Screen name="admin/AdminOrders" options={{ title:"AdminOrder"}} />
+       <Stack.Screen name="admin/Coupon" options={{ title:"Coupon"}} />
    </Stack>
   );
 }

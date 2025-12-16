@@ -138,9 +138,10 @@ export default function CategoryPage() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 12 },
-  heading: { fontSize: 22, fontWeight: "bold", color: "#ff3366", marginBottom: 12 },
+  heading: { fontSize: 22, fontWeight: "bold", color: "#ff3366", marginBottom: 12, marginTop:30, },
   card: {
     width: 160,
+    height:200,
     backgroundColor: "#fdf1f4",
     borderRadius: 12,
     marginBottom: 16,

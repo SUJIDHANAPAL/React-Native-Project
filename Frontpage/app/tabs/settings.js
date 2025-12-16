@@ -51,31 +51,31 @@ export default function SettingsScreen() {
         <List.Item
           title="Wishlist"
           left={() => <List.Icon icon="heart-outline" />}
-          onPress={() => router.push("/wishlist")}
+          onPress={() => router.push("/tabs/wishlist")}
         />
         <Divider />
         <List.Item
           title="Account Settings"
           left={() => <List.Icon icon="account-cog-outline" />}
-          onPress={() => router.push("/account")}
+          onPress={() => router.push("/account/accountsettings")}
         />
         <Divider />
         <List.Item
           title="Notifications"
           left={() => <List.Icon icon="bell-outline" />}
-          onPress={() => router.push("/notifications")}
+          onPress={() => router.push("/account/notifications")}
         />
         <Divider />
         <List.Item
           title="Help & Support"
           left={() => <List.Icon icon="help-circle-outline" />}
-          onPress={() => router.push("/support")}
+          onPress={() => router.push("/account/support")}
         />
         <Divider />
         <List.Item
           title="Terms & Privacy Policy"
           left={() => <List.Icon icon="file-document-outline" />}
-          onPress={() => router.push("/privacy")}
+          onPress={() => router.push("/account/privacy")}
         />
       </View>
 

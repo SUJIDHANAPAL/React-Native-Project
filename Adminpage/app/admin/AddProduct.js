@@ -191,7 +191,7 @@ export default function AddProduct() {
           if (!showForm) setEditingId(null);
         }}
         style={{
-          marginBottom: 10,
+          marginBottom: 10, marginTop:25,
           backgroundColor: editingId ? "#FFA726" : "#6200ee",
         }}
       >

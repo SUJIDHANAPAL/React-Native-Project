@@ -19,6 +19,8 @@ import {
   query,
   where,
   getDocs,
+  addDoc,
+  setDoc,
 } from "firebase/firestore";
 import { useRouter } from "expo-router";
 
@@ -72,6 +74,41 @@ const AddToCart = () => {
     }
   };
 
+  // ➕ Add item to cart in Firestore
+  const addToCart = async (product) => {
+    try {
+      const q = query(collection(db, "cart"), where("productId", "==", product.id));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        // Product exists → increment quantity
+        snapshot.forEach(async (docSnap) => {
+          const existingQuantity = docSnap.data().quantity || 1;
+          await setDoc(doc(db, "cart", docSnap.id), {
+            ...product,
+            quantity: existingQuantity + 1,
+          });
+        });
+      } else {
+        // New product → add to Firestore
+        await addDoc(collection(db, "cart"), {
+          productId: product.id,
+          name: product.name,
+          image: product.image,
+          price: product.price,
+          discountPrice: product.discountPrice || null,
+          rating: product.rating || null,
+          quantity: 1,
+        });
+      }
+
+      ToastAndroid.show("✅ Added to cart", ToastAndroid.SHORT);
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      Alert.alert("Error", "Failed to add item to cart.");
+    }
+  };
+
   // 💳 Navigate to Checkout page with cart + total
   const handleCheckout = () => {
     if (cart.length === 0) {
@@ -79,7 +116,6 @@ const AddToCart = () => {
       return;
     }
 
-    // ✅ Pass cart and total to Checkout.js
     router.push({
       pathname: "/auth/orders/checkout",
       params: {

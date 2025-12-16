@@ -23,37 +23,44 @@ import {
 
 export default function Subcategories() {
   const [subCategoryName, setSubCategoryName] = useState("");
-  const [categoryName, setCategoryName] = useState("");
+  const [category, setCategory] = useState("");
   const [categories, setCategories] = useState([]);
   const [subcategories, setSubcategories] = useState([]);
-  const [editingId, setEditingId] = useState(null); // 🆕 Track edit mode
+  const [editingId, setEditingId] = useState(null);
 
-  // 🔹 Fetch categories for dropdown
+  // 🔹 Load Categories from Firebase
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, "categories"));
-        const list = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+
+        const list = querySnapshot.docs
+          .map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }))
+          .filter((item) => item.category); // remove empty or undefined
+
         setCategories(list);
       } catch (error) {
         console.log("Error fetching categories:", error);
       }
     };
+
     fetchCategories();
   }, []);
 
-  // 🔹 Load subcategories
+  // 🔹 Load Subcategories list
   const loadSubcategories = async () => {
     try {
       const q = query(collection(db, "subcategories"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
+
       const list = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
       setSubcategories(list);
     } catch (error) {
       console.log("Error fetching subcategories:", error);
@@ -64,36 +71,33 @@ export default function Subcategories() {
     loadSubcategories();
   }, []);
 
-  // 🔹 Add or Update Subcategory
+  // 🔹 Save or Update Subcategory
   const handleSave = async () => {
-    if (!subCategoryName.trim() || !categoryName.trim()) {
+    if (!subCategoryName.trim() || !category.trim()) {
       alert("Please select a category and enter a subcategory name!");
       return;
     }
 
     try {
       if (editingId) {
-        // 📝 Update existing subcategory
         const subRef = doc(db, "subcategories", editingId);
         await updateDoc(subRef, {
-          categoryName,
+          category,
           subCategoryName,
         });
         alert("Subcategory updated successfully!");
         setEditingId(null);
       } else {
-        // ➕ Add new subcategory
         await addDoc(collection(db, "subcategories"), {
-          categoryName,
+          category,
           subCategoryName,
           createdAt: new Date(),
         });
         alert("Subcategory added successfully!");
       }
 
-      // Clear inputs and refresh
       setSubCategoryName("");
-      setCategoryName("");
+      setCategory("");
       loadSubcategories();
     } catch (error) {
       console.log("Error saving subcategory:", error);
@@ -103,7 +107,7 @@ export default function Subcategories() {
   // 🔹 Edit Subcategory
   const handleEdit = (item) => {
     setEditingId(item.id);
-    setCategoryName(item.categoryName);
+    setCategory(item.category);
     setSubCategoryName(item.subCategoryName);
   };
 
@@ -133,24 +137,17 @@ export default function Subcategories() {
         {editingId ? "✏️ Edit Subcategory" : "🗂 Add Subcategory"}
       </Text>
 
-      {/* 👇 Category Dropdown */}
+      {/* Category Dropdown */}
       <View style={styles.dropdownContainer}>
-        <Picker
-          selectedValue={categoryName}
-          onValueChange={(itemValue) => setCategoryName(itemValue)}
-          style={styles.dropdown}
-        >
+        <Picker selectedValue={category} onValueChange={setCategory} style={styles.dropdown}>
           <Picker.Item label="Select a Category" value="" />
           {categories.map((cat) => (
-            <Picker.Item
-              key={cat.id}
-              label={cat.categoryName}
-              value={cat.categoryName}
-            />
+            <Picker.Item key={cat.id} label={cat.category} value={cat.category} />
           ))}
         </Picker>
       </View>
 
+      {/* Subcategory Input */}
       <TextInput
         style={styles.input}
         placeholder="Enter Subcategory Name"
@@ -171,7 +168,7 @@ export default function Subcategories() {
         renderItem={({ item }) => (
           <View style={styles.item}>
             <Text style={styles.itemText}>
-              {item.categoryName} → {item.subCategoryName}
+              {item.category} → {item.subCategoryName}
             </Text>
 
             <View style={styles.actionButtons}>
@@ -196,6 +193,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#4B0082",
     marginBottom: 20,
+    marginTop: 25,
   },
   dropdownContainer: {
     borderWidth: 1,

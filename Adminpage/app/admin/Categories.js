@@ -94,7 +94,7 @@ export default function Categories() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.heading}>🗂 Add Category</Text>
+      <Text style={styles.heading}>🗂 Category</Text>
 
       <TextInput
         style={styles.input}
@@ -167,7 +167,7 @@ export default function Categories() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f8f8f8" },
-  heading: { fontSize: 20, fontWeight: "bold", color: "#4B0082", marginBottom: 10 },
+  heading: { fontSize: 20, fontWeight: "bold", color: "#4B0082", marginBottom: 10 , marginTop:25},
   input: {
     borderWidth: 1,
     borderColor: "#ccc",

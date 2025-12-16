@@ -194,7 +194,7 @@ export default function Tags() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: "#f9f9f9" },
-  header: { fontSize: 22, fontWeight: "bold", color: "#4B0082", marginBottom: 20 },
+  header: { fontSize: 22, fontWeight: "bold", color: "#4B0082", marginBottom: 20 , marginTop:25,},
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
