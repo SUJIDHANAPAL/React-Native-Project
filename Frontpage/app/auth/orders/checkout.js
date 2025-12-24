@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, IconButton } from "react-native-paper";
@@ -17,10 +18,12 @@ import {
   orderBy,
 } from "firebase/firestore";
 
-const Checkout = () => {
+const Checkout = ({ route }) => {
   const router = useRouter();
+  const userId = auth.currentUser?.uid;
 
   const [cartItems, setCartItems] = useState([]);
+  const [buyNowItem, setBuyNowItem] = useState(null); // single product from Buy Now
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
@@ -32,7 +35,14 @@ const Checkout = () => {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
-  const userId = auth.currentUser?.uid;
+  // -------------------------------
+  // Get Buy Now product from route params
+  // -------------------------------
+  useEffect(() => {
+    if (route?.params?.buyNowProduct) {
+      setBuyNowItem({ ...route.params.buyNowProduct, quantity: 1 });
+    }
+  }, [route]);
 
   // -------------------------------
   // Fetch cart items
@@ -45,7 +55,7 @@ const Checkout = () => {
       }));
       setCartItems(items);
     });
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   // -------------------------------
@@ -74,24 +84,37 @@ const Checkout = () => {
   // Recalculate total
   // -------------------------------
   useEffect(() => {
-    const newTotal = cartItems.reduce((sum, item) => {
+    let items = [...cartItems];
+    if (buyNowItem) items = [buyNowItem]; // only Buy Now product
+    const newTotal = items.reduce((sum, item) => {
       const priceToUse = item.discountPrice ? item.discountPrice : item.price;
       return sum + priceToUse * (item.quantity || 1);
     }, 0);
     setFinalTotal(newTotal);
-  }, [cartItems]);
+  }, [cartItems, buyNowItem]);
 
   const increaseQty = async (index) => {
+    if (buyNowItem) {
+      setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity + 1 });
+      return;
+    }
     const item = cartItems[index];
-    const ref = doc(db, "cart", item.id);
-    await updateDoc(ref, { quantity: (item.quantity || 1) + 1 });
+    await updateDoc(doc(db, "cart", item.id), {
+      quantity: (item.quantity || 1) + 1,
+    });
   };
 
   const decreaseQty = async (index) => {
+    if (buyNowItem) {
+      if (buyNowItem.quantity <= 1) return;
+      setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity - 1 });
+      return;
+    }
     const item = cartItems[index];
     if ((item.quantity || 1) === 1) return;
-    const ref = doc(db, "cart", item.id);
-    await updateDoc(ref, { quantity: item.quantity - 1 });
+    await updateDoc(doc(db, "cart", item.id), {
+      quantity: item.quantity - 1,
+    });
   };
 
   // -------------------------------
@@ -99,75 +122,70 @@ const Checkout = () => {
   // -------------------------------
   const applyCoupon = async () => {
     if (couponApplied) return Alert.alert("Coupon Already Used");
+    if (!coupon) return Alert.alert("Enter Coupon");
 
-    if (!coupon) return Alert.alert("Enter Coupon", "Please enter a coupon code");
+    const q = query(
+      collection(db, "coupons"),
+      where("code", "==", coupon.trim().toUpperCase()),
+      where("active", "==", true)
+    );
 
-    const userCode = coupon.trim().toUpperCase();
-    try {
-      const q = query(
-        collection(db, "coupons"),
-        where("code", "==", userCode),
-        where("active", "==", true)
-      );
+    const snap = await getDocs(q);
+    if (snap.empty) return Alert.alert("Invalid Coupon");
 
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) return Alert.alert("❌ Invalid Coupon", "Coupon does not exist or is inactive");
-
-      const couponData = snapshot.docs[0].data();
-      const discount = couponData.discount;
-      setFinalTotal(finalTotal - (finalTotal * discount) / 100);
-      setCouponApplied(true);
-
-      Alert.alert("🎉 Coupon Applied!", `You received ${discount}% OFF`);
-    } catch (err) {
-      console.log("Coupon Error:", err);
-      Alert.alert("Error", "Something went wrong while applying coupon");
-    }
+    const { discount } = snap.docs[0].data();
+    setFinalTotal(finalTotal - (finalTotal * discount) / 100);
+    setCouponApplied(true);
+    Alert.alert(`You got ${discount}% off! 🎉`);
   };
 
   // -------------------------------
   // Clear cart
   // -------------------------------
   const clearCart = async () => {
-    const snapshot = await getDocs(collection(db, "cart"));
-    const deletePromises = snapshot.docs.map((docSnap) =>
-      deleteDoc(doc(db, "cart", docSnap.id))
+    const snap = await getDocs(collection(db, "cart"));
+    await Promise.all(
+      snap.docs.map((d) => deleteDoc(doc(db, "cart", d.id)))
     );
-    await Promise.all(deletePromises);
   };
 
   // -------------------------------
-  // Place order
+  // Place Order
   // -------------------------------
   const placeOrder = async () => {
-    if (!name || !address || !phone) return Alert.alert("Missing Info", "Please fill all fields");
+    const user = auth.currentUser;
+    if (!name || !address || !phone)
+      return Alert.alert("Missing Info");
+
+    if (!userId)
+      return Alert.alert("Login required");
 
     try {
+      const orderItems = buyNowItem ? [buyNowItem] : cartItems;
+
       await addDoc(collection(db, "orders"), {
+        userId: user.uid,
         name,
         address,
         phone,
         payment,
-        cartItems,
+        cartItems: orderItems,
         totalAmount: finalTotal,
         couponApplied,
         orderStatus: "Placed",
         createdAt: serverTimestamp(),
       });
 
-      await clearCart();
-      Alert.alert("Order Placed 🎉", "Your order has been placed!");
-    } catch (error) {
-      console.log("Order Error:", error);
-      Alert.alert("Error", "Could not place your order");
+      if (!buyNowItem) await clearCart(); // clear only if normal cart
+
+      Alert.alert("Order Placed 🎉");
+      router.push("/auth/product/product");
+    } catch (err) {
+      console.log("Order Error:", err);
+      Alert.alert("Error", "Could not place order");
     }
   };
 
-  const shopMore = () => router.push("/auth/product/product");
-
-  // -------------------------------
-  // Select existing address
-  // -------------------------------
   const selectAddress = (item) => {
     setSelectedAddressId(item.id);
     setName(item.name);
@@ -175,13 +193,18 @@ const Checkout = () => {
     setAddress(`${item.address}, ${item.city}, ${item.state} - ${item.pincode}`);
   };
 
+  const shopMore = () => router.push("/auth/product/product");
+
+  // -------------------------------
+  // Items to display in summary
+  // -------------------------------
+  const displayItems = buyNowItem ? [buyNowItem] : cartItems;
+
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.heading}>Checkout</Text>
 
-      {/* -------------------------- */}
       {/* Saved Addresses */}
-      {/* -------------------------- */}
       {savedAddresses.length > 0 && (
         <Card style={styles.card}>
           <Text style={styles.subheading}>Select Existing Address</Text>
@@ -205,9 +228,7 @@ const Checkout = () => {
         </Card>
       )}
 
-      {/* -------------------------- */}
       {/* Billing Address */}
-      {/* -------------------------- */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Billing Address</Text>
         <TextInput label="Full Name" value={name} onChangeText={setName} mode="outlined" style={styles.input} />
@@ -215,13 +236,11 @@ const Checkout = () => {
         <TextInput label="Phone Number" value={phone} onChangeText={setPhone} mode="outlined" keyboardType="phone-pad" style={styles.input} />
       </Card>
 
-      {/* -------------------------- */}
       {/* Order Summary */}
-      {/* -------------------------- */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Order Summary</Text>
-        {cartItems.length > 0 ? (
-          cartItems.map((item, index) => {
+        {displayItems.length > 0 ? (
+          displayItems.map((item, index) => {
             const priceToUse = item.discountPrice ? item.discountPrice : item.price;
             return (
               <View key={index} style={styles.itemRow}>
@@ -247,9 +266,7 @@ const Checkout = () => {
         </View>
       </Card>
 
-      {/* -------------------------- */}
       {/* Coupon */}
-      {/* -------------------------- */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Apply Coupon</Text>
         <View style={styles.row}>
@@ -260,9 +277,7 @@ const Checkout = () => {
         </View>
       </Card>
 
-      {/* -------------------------- */}
       {/* Payment */}
-      {/* -------------------------- */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Payment Method</Text>
         <RadioButton.Group value={payment} onValueChange={setPayment}>
@@ -277,7 +292,7 @@ const Checkout = () => {
         </RadioButton.Group>
       </Card>
 
-      {cartItems.length > 0 ? (
+      {displayItems.length > 0 ? (
         <Button mode="contained" onPress={placeOrder} style={styles.orderButton}>Place My Order</Button>
       ) : (
         <Button mode="contained" onPress={shopMore} style={styles.shopMoreButton}>🛍️ Shop More</Button>

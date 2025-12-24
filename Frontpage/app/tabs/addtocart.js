@@ -1,3 +1,4 @@
+// app/auth/cart/addtocart.js
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -20,7 +21,6 @@ import {
   where,
   getDocs,
   addDoc,
-  setDoc,
 } from "firebase/firestore";
 import { useRouter } from "expo-router";
 
@@ -29,105 +29,61 @@ const AddToCart = () => {
   const [total, setTotal] = useState(0);
   const router = useRouter();
 
-  // ✅ Live cart updates from Firestore
+  // 🔥 LIVE CART
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "cart"), (snapshot) => {
-      const cartItems = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
+      const items = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
       }));
 
-      setCart(cartItems);
+      setCart(items);
 
-      const sum = cartItems.reduce(
+      const sum = items.reduce(
         (acc, item) =>
-          acc +
-          (item.discountPrice ? item.discountPrice : item.price) *
-            (item.quantity || 1),
+          acc + (item.discountPrice ?? item.price),
         0
       );
       setTotal(sum);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  // ❌ Remove item from cart
+  // ❌ REMOVE ITEM
   const removeFromCart = async (productId) => {
     try {
       const q = query(collection(db, "cart"), where("productId", "==", productId));
-      const snapshot = await getDocs(q);
+      const snap = await getDocs(q);
 
-      if (snapshot.empty) {
-        Alert.alert("Not found", "This item isn't in your cart.");
-        return;
-      }
-
-      snapshot.forEach(async (docSnap) => {
-        await deleteDoc(doc(db, "cart", docSnap.id));
+      snap.forEach(async (d) => {
+        await deleteDoc(doc(db, "cart", d.id));
       });
 
-      ToastAndroid.show("🗑️ Item removed from cart", ToastAndroid.SHORT);
-    } catch (error) {
-      console.error("Error removing item:", error);
-      Alert.alert("Error", "Failed to remove item from cart.");
+      ToastAndroid.show("Removed from cart", ToastAndroid.SHORT);
+    } catch (e) {
+      Alert.alert("Error", "Failed to remove item");
     }
   };
 
-  // ➕ Add item to cart in Firestore
-  const addToCart = async (product) => {
-    try {
-      const q = query(collection(db, "cart"), where("productId", "==", product.id));
-      const snapshot = await getDocs(q);
-
-      if (!snapshot.empty) {
-        // Product exists → increment quantity
-        snapshot.forEach(async (docSnap) => {
-          const existingQuantity = docSnap.data().quantity || 1;
-          await setDoc(doc(db, "cart", docSnap.id), {
-            ...product,
-            quantity: existingQuantity + 1,
-          });
-        });
-      } else {
-        // New product → add to Firestore
-        await addDoc(collection(db, "cart"), {
-          productId: product.id,
-          name: product.name,
-          image: product.image,
-          price: product.price,
-          discountPrice: product.discountPrice || null,
-          rating: product.rating || null,
-          quantity: 1,
-        });
-      }
-
-      ToastAndroid.show("✅ Added to cart", ToastAndroid.SHORT);
-    } catch (error) {
-      console.error("Error adding to cart:", error);
-      Alert.alert("Error", "Failed to add item to cart.");
-    }
-  };
-
-  // 💳 Navigate to Checkout page with cart + total
+  // 💳 CHECKOUT
   const handleCheckout = () => {
-    if (cart.length === 0) {
-      Alert.alert("Cart is empty", "Add some products first!");
+    if (!cart.length) {
+      Alert.alert("Cart empty", "Add products first");
       return;
     }
 
     router.push({
       pathname: "/auth/orders/checkout",
       params: {
-        cart: JSON.stringify(cart),
         total: total.toString(),
       },
     });
   };
 
-  // 🖼 Render cart item
+  // 🖼 RENDER ITEM
   const renderItem = ({ item }) => {
-    const hasDiscount = item.discountPrice && item.discountPrice < item.price;
+    const price = item.discountPrice ?? item.price;
 
     return (
       <Card style={styles.card}>
@@ -136,23 +92,15 @@ const AddToCart = () => {
 
           <View style={styles.details}>
             <Text style={styles.title}>{item.name}</Text>
-
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={styles.discountPrice}>
-                ₹{hasDiscount ? item.discountPrice : item.price}
-              </Text>
-              {hasDiscount && <Text style={styles.oldPrice}>₹{item.price}</Text>}
-            </View>
+            <Text style={styles.price}>₹{price}</Text>
 
             {item.rating ? (
               <Text style={styles.rating}>⭐ {item.rating}</Text>
             ) : null}
           </View>
 
-          <TouchableOpacity
-            onPress={() => removeFromCart(item.productId || item.id)}
-          >
-            <Ionicons name="trash-outline" size={24} color="red" />
+          <TouchableOpacity onPress={() => removeFromCart(item.productId)}>
+            <Ionicons name="trash-outline" size={22} color="red" />
           </TouchableOpacity>
         </View>
       </Card>
@@ -170,12 +118,13 @@ const AddToCart = () => {
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
           />
+
           <View style={styles.checkoutBox}>
-            <Text style={styles.totalText}>Total: ₹{total}</Text>
+            <Text style={styles.total}>Total ₹{total}</Text>
             <Button
               mode="contained"
               onPress={handleCheckout}
-              style={styles.checkoutButton}
+              style={styles.checkoutBtn}
             >
               Checkout
             </Button>
@@ -190,28 +139,21 @@ export default AddToCart;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: "#fff" },
-  card: { marginBottom: 10, borderRadius: 10, elevation: 2, padding: 10 },
+  card: { marginBottom: 10, borderRadius: 10, padding: 10 },
   row: { flexDirection: "row", alignItems: "center" },
   image: { width: 80, height: 80, borderRadius: 10, marginRight: 10 },
   details: { flex: 1 },
   title: { fontSize: 16, fontWeight: "600" },
-  discountPrice: { color: "#ff3366", fontWeight: "bold", marginRight: 6 },
-  oldPrice: {
-    color: "#888",
-    textDecorationLine: "line-through",
-    fontSize: 13,
-  },
-  rating: { fontSize: 12, color: "#555", marginTop: 3 },
-  empty: { fontSize: 18, textAlign: "center", color: "#666", marginTop: 40 },
+  price: { color: "#ff3366", fontWeight: "bold", marginVertical: 4 },
+  rating: { fontSize: 12, color: "#555" },
+  empty: { fontSize: 18, textAlign: "center", marginTop: 40 },
   checkoutBox: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
     padding: 16,
     borderTopWidth: 1,
     borderColor: "#ddd",
-    backgroundColor: "#fafafa",
   },
-  totalText: { fontSize: 18, fontWeight: "bold" },
-  checkoutButton: { backgroundColor: "#ff3366", borderRadius: 8 },
+  total: { fontSize: 18, fontWeight: "bold" },
+  checkoutBtn: { backgroundColor: "#ff3366" },
 });
