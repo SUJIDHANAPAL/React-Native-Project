@@ -1,4 +1,4 @@
-// app/auth/cart/addtocart.js
+
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Text, Card, Button } from "react-native-paper";
 import { Ionicons } from "@expo/vector-icons";
-import { db } from "../../firebaseConfig";
+import { db, auth } from "../../firebaseConfig";
 import {
   collection,
   onSnapshot,
@@ -20,8 +20,8 @@ import {
   query,
   where,
   getDocs,
-  addDoc,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "expo-router";
 
 const AddToCart = () => {
@@ -29,33 +29,60 @@ const AddToCart = () => {
   const [total, setTotal] = useState(0);
   const router = useRouter();
 
-  // 🔥 LIVE CART
+  // ✅ WAIT FOR AUTH, THEN LOAD CART
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "cart"), (snapshot) => {
-      const items = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
+    let unsubscribeCart = null;
 
-      setCart(items);
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setCart([]);
+        setTotal(0);
+        return;
+      }
 
-      const sum = items.reduce(
-        (acc, item) =>
-          acc + (item.discountPrice ?? item.price),
-        0
+      const q = query(
+        collection(db, "cart"),
+        where("userId", "==", user.uid)
       );
-      setTotal(sum);
+
+      unsubscribeCart = onSnapshot(q, (snapshot) => {
+        const items = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        }));
+
+        setCart(items);
+
+        const sum = items.reduce(
+          (acc, item) =>
+            acc +
+            (item.discountPrice ?? item.price) * (item.quantity || 1),
+          0
+        );
+
+        setTotal(sum);
+      });
     });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeCart) unsubscribeCart();
+    };
   }, []);
 
   // ❌ REMOVE ITEM
   const removeFromCart = async (productId) => {
     try {
-      const q = query(collection(db, "cart"), where("productId", "==", productId));
-      const snap = await getDocs(q);
+      const user = auth.currentUser;
+      if (!user) return;
 
+      const q = query(
+        collection(db, "cart"),
+        where("productId", "==", productId),
+        where("userId", "==", user.uid)
+      );
+
+      const snap = await getDocs(q);
       snap.forEach(async (d) => {
         await deleteDoc(doc(db, "cart", d.id));
       });
@@ -73,12 +100,7 @@ const AddToCart = () => {
       return;
     }
 
-    router.push({
-      pathname: "/auth/orders/checkout",
-      params: {
-        total: total.toString(),
-      },
-    });
+    router.push("/auth/orders/checkout");
   };
 
   // 🖼 RENDER ITEM

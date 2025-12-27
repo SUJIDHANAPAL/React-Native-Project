@@ -1,23 +1,43 @@
-import React from "react";
+// app/tabs/settings.js
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Avatar, Text, List, Divider, Button } from "react-native-paper";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { signOut } from "firebase/auth";
-import { auth } from "../../firebaseConfig";
+import { getAuth, signOut } from "firebase/auth";
+import { db } from "../../firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const auth = getAuth();
+  const userId = auth.currentUser?.uid;
 
+  const [user, setUser] = useState(null);
+
+  // 🔹 Fetch user data from Firestore
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (!userId) return;
+      try {
+        const userRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setUser(userSnap.data());
+        }
+      } catch (error) {
+        console.error("Fetch User Error:", error);
+      }
+    };
+
+    fetchUser();
+  }, [userId]);
+
+  // 🔹 Logout function
   const handleLogout = async () => {
     try {
-      // 🔹 Clear local login state
       await AsyncStorage.removeItem("isLoggedIn");
-
-      // 🔹 Sign out from Firebase
       await signOut(auth);
-
-      // 🔹 Redirect to login screen
       router.replace("/auth/login");
     } catch (error) {
       console.error("Logout error:", error);
@@ -31,13 +51,15 @@ export default function SettingsScreen() {
         <Avatar.Image
           size={80}
           source={{
-            uri: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
+            uri:
+              user?.avatar ||
+              "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
           }}
         />
         <Text variant="titleMedium" style={styles.name}>
-          Suji Dhanapal
+          {user?.name || "Loading..."}
         </Text>
-        <Text style={styles.email}>suji@example.com</Text>
+        <Text style={styles.email}>{user?.email || "Loading..."}</Text>
       </View>
 
       {/* 🔹 Settings List */}

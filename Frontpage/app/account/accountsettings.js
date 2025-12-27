@@ -1,10 +1,36 @@
-import React from "react";
+// app/account/accountsettings.js
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Text, List, Divider, Avatar } from "react-native-paper";
 import { useRouter } from "expo-router";
+import { getAuth } from "firebase/auth";
+import { db } from "../../firebaseConfig";
+import { doc, getDoc } from "firebase/firestore";
 
 export default function AccountSettings() {
   const router = useRouter();
+  const auth = getAuth();
+  const userId = auth.currentUser?.uid;
+
+  const [user, setUser] = useState(null);
+
+  // 🔹 Fetch user info from Firestore
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (!userId) return;
+      try {
+        const userRef = doc(db, "users", userId);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          setUser(userSnap.data());
+        }
+      } catch (error) {
+        console.error("Fetch User Error:", error);
+      }
+    };
+
+    fetchUser();
+  }, [userId]);
 
   return (
     <ScrollView style={styles.container}>
@@ -13,11 +39,13 @@ export default function AccountSettings() {
         <Avatar.Image
           size={90}
           source={{
-            uri: "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
+            uri:
+              user?.avatar ||
+              "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png",
           }}
         />
-        <Text style={styles.name}>Suji Dhanapal</Text>
-        <Text style={styles.email}>suji@example.com</Text>
+        <Text style={styles.name}>{user?.name || "Loading..."}</Text>
+        <Text style={styles.email}>{user?.email || "Loading..."}</Text>
       </View>
 
       {/* 🔹 Account Items */}

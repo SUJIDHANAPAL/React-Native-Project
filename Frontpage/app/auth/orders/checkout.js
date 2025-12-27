@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from "react";
 import { View, ScrollView, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { Text, TextInput, Button, RadioButton, Card, IconButton } from "react-native-paper";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { auth, db } from "../../../firebaseConfig";
 import {
   addDoc,
@@ -18,12 +17,14 @@ import {
   orderBy,
 } from "firebase/firestore";
 
-const Checkout = ({ route }) => {
+const Checkout = () => {
   const router = useRouter();
+  const { buyNowProduct } = useLocalSearchParams();
   const userId = auth.currentUser?.uid;
 
   const [cartItems, setCartItems] = useState([]);
-  const [buyNowItem, setBuyNowItem] = useState(null); // single product from Buy Now
+  const [buyNowItem, setBuyNowItem] = useState(null);
+
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
@@ -36,13 +37,22 @@ const Checkout = ({ route }) => {
   const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   // -------------------------------
-  // Get Buy Now product from route params
+  // BUY NOW PARAM (FIXED PROPERLY)
   // -------------------------------
   useEffect(() => {
-    if (route?.params?.buyNowProduct) {
-      setBuyNowItem({ ...route.params.buyNowProduct, quantity: 1 });
+    if (buyNowProduct) {
+      try {
+        const parsed = JSON.parse(buyNowProduct);
+        setBuyNowItem({ ...parsed, quantity: 1 });
+      } catch (e) {
+        console.log("Buy Now parse error:", e);
+        setBuyNowItem(null);
+      }
+    } else {
+      // ⭐ CRITICAL FIX: clear old Buy Now when coming from cart
+      setBuyNowItem(null);
     }
-  }, [route]);
+  }, [buyNowProduct]);
 
   // -------------------------------
   // Fetch cart items
@@ -84,17 +94,19 @@ const Checkout = ({ route }) => {
   // Recalculate total
   // -------------------------------
   useEffect(() => {
-    let items = [...cartItems];
-    if (buyNowItem) items = [buyNowItem]; // only Buy Now product
-    const newTotal = items.reduce((sum, item) => {
-      const priceToUse = item.discountPrice ? item.discountPrice : item.price;
-      return sum + priceToUse * (item.quantity || 1);
+    const items =
+      buyNowProduct && buyNowItem ? [buyNowItem] : cartItems;
+
+    const total = items.reduce((sum, item) => {
+      const price = item.discountPrice || item.price;
+      return sum + price * (item.quantity || 1);
     }, 0);
-    setFinalTotal(newTotal);
-  }, [cartItems, buyNowItem]);
+
+    setFinalTotal(total);
+  }, [cartItems, buyNowItem, buyNowProduct]);
 
   const increaseQty = async (index) => {
-    if (buyNowItem) {
+    if (buyNowProduct && buyNowItem) {
       setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity + 1 });
       return;
     }
@@ -105,7 +117,7 @@ const Checkout = ({ route }) => {
   };
 
   const decreaseQty = async (index) => {
-    if (buyNowItem) {
+    if (buyNowProduct && buyNowItem) {
       if (buyNowItem.quantity <= 1) return;
       setBuyNowItem({ ...buyNowItem, quantity: buyNowItem.quantity - 1 });
       return;
@@ -140,7 +152,7 @@ const Checkout = ({ route }) => {
   };
 
   // -------------------------------
-  // Clear cart
+  // Clear cart (ONLY cart checkout)
   // -------------------------------
   const clearCart = async () => {
     const snap = await getDocs(collection(db, "cart"));
@@ -153,7 +165,6 @@ const Checkout = ({ route }) => {
   // Place Order
   // -------------------------------
   const placeOrder = async () => {
-    const user = auth.currentUser;
     if (!name || !address || !phone)
       return Alert.alert("Missing Info");
 
@@ -161,10 +172,11 @@ const Checkout = ({ route }) => {
       return Alert.alert("Login required");
 
     try {
-      const orderItems = buyNowItem ? [buyNowItem] : cartItems;
+      const orderItems =
+        buyNowProduct && buyNowItem ? [buyNowItem] : cartItems;
 
       await addDoc(collection(db, "orders"), {
-        userId: user.uid,
+        userId,
         name,
         address,
         phone,
@@ -176,7 +188,7 @@ const Checkout = ({ route }) => {
         createdAt: serverTimestamp(),
       });
 
-      if (!buyNowItem) await clearCart(); // clear only if normal cart
+      if (!buyNowProduct) await clearCart();
 
       Alert.alert("Order Placed 🎉");
       router.push("/auth/product/product");
@@ -195,16 +207,13 @@ const Checkout = ({ route }) => {
 
   const shopMore = () => router.push("/auth/product/product");
 
-  // -------------------------------
-  // Items to display in summary
-  // -------------------------------
-  const displayItems = buyNowItem ? [buyNowItem] : cartItems;
+  const displayItems =
+    buyNowProduct && buyNowItem ? [buyNowItem] : cartItems;
 
   return (
     <ScrollView style={styles.container}>
       <Text style={styles.heading}>Checkout</Text>
 
-      {/* Saved Addresses */}
       {savedAddresses.length > 0 && (
         <Card style={styles.card}>
           <Text style={styles.subheading}>Select Existing Address</Text>
@@ -228,7 +237,6 @@ const Checkout = ({ route }) => {
         </Card>
       )}
 
-      {/* Billing Address */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Billing Address</Text>
         <TextInput label="Full Name" value={name} onChangeText={setName} mode="outlined" style={styles.input} />
@@ -236,37 +244,40 @@ const Checkout = ({ route }) => {
         <TextInput label="Phone Number" value={phone} onChangeText={setPhone} mode="outlined" keyboardType="phone-pad" style={styles.input} />
       </Card>
 
-      {/* Order Summary */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Order Summary</Text>
         {displayItems.length > 0 ? (
           displayItems.map((item, index) => {
-            const priceToUse = item.discountPrice ? item.discountPrice : item.price;
+            const price = item.discountPrice || item.price;
             return (
               <View key={index} style={styles.itemRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontWeight: "600" }}>{item.name}</Text>
-                  <Text>₹{priceToUse}</Text>
+                  <Text>₹{price}</Text>
                 </View>
                 <View style={styles.qtyControl}>
                   <IconButton icon="minus" size={18} onPress={() => decreaseQty(index)} />
                   <Text style={{ marginHorizontal: 8 }}>{item.quantity || 1}</Text>
                   <IconButton icon="plus" size={18} onPress={() => increaseQty(index)} />
                 </View>
-                <Text style={styles.priceText}>₹{(priceToUse * (item.quantity || 1)).toFixed(2)}</Text>
+                <Text style={styles.priceText}>
+                  ₹{(price * (item.quantity || 1)).toFixed(2)}
+                </Text>
               </View>
             );
           })
         ) : (
-          <Text style={{ textAlign: "center", marginVertical: 20 }}>🛒 Your cart is empty</Text>
+          <Text style={{ textAlign: "center", marginVertical: 20 }}>
+            🛒 Your cart is empty
+          </Text>
         )}
+
         <View style={styles.itemRow}>
           <Text style={{ flex: 1, fontWeight: "bold" }}>Total:</Text>
           <Text style={{ fontWeight: "bold" }}>₹{finalTotal.toFixed(2)}</Text>
         </View>
       </Card>
 
-      {/* Coupon */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Apply Coupon</Text>
         <View style={styles.row}>
@@ -277,7 +288,6 @@ const Checkout = ({ route }) => {
         </View>
       </Card>
 
-      {/* Payment */}
       <Card style={styles.card}>
         <Text style={styles.subheading}>Payment Method</Text>
         <RadioButton.Group value={payment} onValueChange={setPayment}>
@@ -293,9 +303,13 @@ const Checkout = ({ route }) => {
       </Card>
 
       {displayItems.length > 0 ? (
-        <Button mode="contained" onPress={placeOrder} style={styles.orderButton}>Place My Order</Button>
+        <Button mode="contained" onPress={placeOrder} style={styles.orderButton}>
+          Place My Order
+        </Button>
       ) : (
-        <Button mode="contained" onPress={shopMore} style={styles.shopMoreButton}>🛍️ Shop More</Button>
+        <Button mode="contained" onPress={shopMore} style={styles.shopMoreButton}>
+          🛍️ Shop More
+        </Button>
       )}
     </ScrollView>
   );
